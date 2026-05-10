@@ -20,4 +20,3 @@ def test_get_stt_supported_content_types_returns_copy_of_defaults():
     content_types.append("application/octet-stream")
 
     assert get_stt_supported_content_types([]) == DEFAULT_STT_SUPPORTED_CONTENT_TYPES
-
