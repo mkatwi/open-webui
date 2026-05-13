@@ -99,6 +99,7 @@ from open_webui.models.functions import Functions
 from open_webui.models.models import Models
 from open_webui.models.users import UserModel, Users
 from open_webui.models.chats import Chats
+from open_webui.constants import ERROR_MESSAGES
 
 from open_webui.config import (
     LICENSE_KEY,
@@ -1265,6 +1266,19 @@ async def get_base_models(request: Request, user=Depends(get_admin_user)):
 ##################################
 
 
+class ChatCompletionAccessError(Exception):
+    pass
+
+
+def ensure_chat_completion_access(chat_id: Optional[str], user: UserModel) -> None:
+    if not chat_id:
+        return
+
+    chat = Chats.get_chat_by_id(chat_id)
+    if chat and chat.user_id != user.id and user.role != "admin":
+        raise ChatCompletionAccessError()
+
+
 @app.post("/api/embeddings")
 async def embeddings(
     request: Request, form_data: dict, user=Depends(get_verified_user)
@@ -1351,6 +1365,8 @@ async def chat_completion(
             ),
         }
 
+        ensure_chat_completion_access(metadata.get("chat_id"), user)
+
         request.state.metadata = metadata
         form_data["metadata"] = metadata
 
@@ -1358,6 +1374,11 @@ async def chat_completion(
             request, form_data, user, metadata, model
         )
 
+    except ChatCompletionAccessError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+        )
     except Exception as e:
         log.debug(f"Error processing chat payload: {e}")
         if metadata.get("chat_id") and metadata.get("message_id"):
