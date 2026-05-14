@@ -33,7 +33,7 @@ from open_webui.models.knowledge import Knowledges
 
 from open_webui.routers.knowledge import get_knowledge, get_knowledge_list
 from open_webui.routers.retrieval import ProcessFileForm, process_file
-from open_webui.routers.audio import transcribe
+from open_webui.routers.audio import is_stt_supported_content_type, transcribe
 from open_webui.storage.provider import Storage
 from open_webui.utils.auth import get_admin_user, get_verified_user
 from pydantic import BaseModel
@@ -155,17 +155,9 @@ def upload_file(
         if process:
             try:
                 if file.content_type:
-                    stt_supported_content_types = (
-                        request.app.state.config.STT_SUPPORTED_CONTENT_TYPES
-                        or [
-                            "audio/*",
-                            "video/webm",
-                        ]
-                    )
-
-                    if any(
-                        fnmatch(file.content_type, content_type)
-                        for content_type in stt_supported_content_types
+                    if is_stt_supported_content_type(
+                        file.content_type,
+                        request.app.state.config.STT_SUPPORTED_CONTENT_TYPES,
                     ):
                         file_path = Storage.get_file(file_path)
                         result = transcribe(request, file_path, file_metadata)
