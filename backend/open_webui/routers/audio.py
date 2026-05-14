@@ -58,6 +58,7 @@ MAX_FILE_SIZE_MB = 20
 MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024  # Convert MB to bytes
 AZURE_MAX_FILE_SIZE_MB = 200
 AZURE_MAX_FILE_SIZE = AZURE_MAX_FILE_SIZE_MB * 1024 * 1024  # Convert MB to bytes
+DEFAULT_STT_SUPPORTED_CONTENT_TYPES = ["audio/*", "video/webm"]
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["AUDIO"])
@@ -117,6 +118,32 @@ def convert_audio_to_mp3(file_path):
     except Exception as e:
         log.error(f"Error converting audio file: {e}")
         return None
+
+
+def get_stt_supported_content_types(
+    configured_content_types: Optional[list[str]],
+) -> list[str]:
+    content_types = [
+        content_type.strip()
+        for content_type in (configured_content_types or [])
+        if content_type and content_type.strip()
+    ]
+
+    return content_types or DEFAULT_STT_SUPPORTED_CONTENT_TYPES
+
+
+def is_stt_supported_content_type(
+    content_type: Optional[str], configured_content_types: Optional[list[str]]
+) -> bool:
+    if not content_type:
+        return False
+
+    return any(
+        fnmatch(content_type, supported_content_type)
+        for supported_content_type in get_stt_supported_content_types(
+            configured_content_types
+        )
+    )
 
 
 def set_faster_whisper_model(model: str, auto_update: bool = False):
@@ -919,14 +946,8 @@ def transcription(
 ):
     log.info(f"file.content_type: {file.content_type}")
 
-    supported_content_types = request.app.state.config.STT_SUPPORTED_CONTENT_TYPES or [
-        "audio/*",
-        "video/webm",
-    ]
-
-    if not any(
-        fnmatch(file.content_type, content_type)
-        for content_type in supported_content_types
+    if not is_stt_supported_content_type(
+        file.content_type, request.app.state.config.STT_SUPPORTED_CONTENT_TYPES
     ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
