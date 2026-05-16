@@ -63,6 +63,25 @@ router = APIRouter()
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MAIN"])
 
+
+def sync_ldap_user_groups(
+    user,
+    enable_group_management: bool,
+    enable_group_creation: bool,
+    user_groups: list[str],
+):
+    if user.role == "admin" or not enable_group_management:
+        return
+
+    if enable_group_creation and user_groups:
+        Groups.create_groups_by_group_names(user.id, user_groups)
+
+    try:
+        Groups.sync_groups_by_group_names(user.id, user_groups)
+        log.info(f"Successfully synced groups for user {user.id}: {user_groups}")
+    except Exception as e:
+        log.error(f"Failed to sync groups for user {user.id}: {e}")
+
 ############################
 # GetSessionUser
 ############################
@@ -408,25 +427,16 @@ async def ldap_auth(request: Request, response: Response, form_data: LdapForm):
                     secure=WEBUI_AUTH_COOKIE_SECURE,
                 )
 
+                sync_ldap_user_groups(
+                    user,
+                    ENABLE_LDAP_GROUP_MANAGEMENT,
+                    ENABLE_LDAP_GROUP_CREATION,
+                    user_groups,
+                )
+
                 user_permissions = get_permissions(
                     user.id, request.app.state.config.USER_PERMISSIONS
                 )
-
-                if (
-                    user.role != "admin"
-                    and ENABLE_LDAP_GROUP_MANAGEMENT
-                    and user_groups
-                ):
-                    if ENABLE_LDAP_GROUP_CREATION:
-                        Groups.create_groups_by_group_names(user.id, user_groups)
-
-                    try:
-                        Groups.sync_groups_by_group_names(user.id, user_groups)
-                        log.info(
-                            f"Successfully synced groups for user {user.id}: {user_groups}"
-                        )
-                    except Exception as e:
-                        log.error(f"Failed to sync groups for user {user.id}: {e}")
 
                 return {
                     "token": token,

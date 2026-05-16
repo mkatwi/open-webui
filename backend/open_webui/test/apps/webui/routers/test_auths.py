@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from test.util.abstract_integration_test import AbstractPostgresTest
 from test.util.mock_user import mock_webui_user
 
@@ -96,6 +98,34 @@ class TestAuths(AbstractPostgresTest):
         assert data["profile_image_url"] == "/user.png"
         assert data["token"] is not None and len(data["token"]) > 0
         assert data["token_type"] == "Bearer"
+
+    def test_sync_ldap_user_groups_syncs_empty_group_list(self, monkeypatch):
+        from open_webui.routers import auths
+
+        calls = []
+
+        monkeypatch.setattr(
+            auths.Groups,
+            "create_groups_by_group_names",
+            lambda user_id, group_names: calls.append(
+                ("create", user_id, group_names)
+            ),
+        )
+        monkeypatch.setattr(
+            auths.Groups,
+            "sync_groups_by_group_names",
+            lambda user_id, group_names: calls.append(("sync", user_id, group_names))
+            or True,
+        )
+
+        auths.sync_ldap_user_groups(
+            SimpleNamespace(id="user-id", role="user"),
+            enable_group_management=True,
+            enable_group_creation=True,
+            user_groups=[],
+        )
+
+        assert calls == [("sync", "user-id", [])]
 
     def test_signup(self):
         response = self.fast_api_client.post(
