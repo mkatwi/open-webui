@@ -234,3 +234,49 @@ class TestChats(AbstractPostgresTest):
 
         chat = self.chats.get_chat_by_id(chat_id)
         assert chat.share_id is None
+
+    def test_chat_completion_error_does_not_update_other_users_chat(self):
+        from open_webui.models.chats import ChatForm
+
+        victim_message_id = "victim-message"
+        victim_chat = self.chats.insert_new_chat(
+            "2",
+            ChatForm(
+                chat={
+                    "title": "Victim chat",
+                    "history": {
+                        "currentId": victim_message_id,
+                        "messages": {
+                            victim_message_id: {
+                                "id": victim_message_id,
+                                "role": "assistant",
+                                "content": "do not overwrite",
+                            }
+                        },
+                    },
+                }
+            ),
+        )
+
+        with mock_webui_user(id="3", role="user"):
+            response = self.fast_api_client.post(
+                "/api/chat/completions",
+                json={
+                    "model": "attacker-direct",
+                    "model_item": {
+                        "id": "attacker-direct",
+                        "direct": True,
+                        "owned_by": "openai",
+                        "info": {"meta": {}},
+                    },
+                    "chat_id": victim_chat.id,
+                    "id": victim_message_id,
+                },
+            )
+
+        assert response.status_code == 403
+        message = self.chats.get_message_by_id_and_message_id(
+            victim_chat.id, victim_message_id
+        )
+        assert message["content"] == "do not overwrite"
+        assert "error" not in message
