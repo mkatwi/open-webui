@@ -457,6 +457,16 @@ from open_webui.tasks import (
 from open_webui.utils.redis import get_sentinels_from_env
 
 
+def can_update_chat(chat_id: Optional[str], user: UserModel) -> bool:
+    if not chat_id:
+        return False
+
+    if user.role == "admin" and ENABLE_ADMIN_CHAT_ACCESS:
+        return Chats.get_chat_by_id(chat_id) is not None
+
+    return Chats.get_chat_by_id_and_user_id(chat_id, user.id) is not None
+
+
 if SAFE_MODE:
     print("SAFE MODE ENABLED")
     Functions.deactivate_all_functions()
@@ -1351,6 +1361,12 @@ async def chat_completion(
             ),
         }
 
+        if metadata.get("chat_id") and not can_update_chat(metadata["chat_id"], user):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Chat not found",
+            )
+
         request.state.metadata = metadata
         form_data["metadata"] = metadata
 
@@ -1360,7 +1376,11 @@ async def chat_completion(
 
     except Exception as e:
         log.debug(f"Error processing chat payload: {e}")
-        if metadata.get("chat_id") and metadata.get("message_id"):
+        if (
+            metadata.get("chat_id")
+            and metadata.get("message_id")
+            and can_update_chat(metadata["chat_id"], user)
+        ):
             # Update the chat message with the error
             Chats.upsert_message_to_chat_by_id_and_message_id(
                 metadata["chat_id"],
@@ -1369,6 +1389,9 @@ async def chat_completion(
                     "error": {"content": str(e)},
                 },
             )
+
+        if isinstance(e, HTTPException):
+            raise e
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -1383,7 +1406,11 @@ async def chat_completion(
         )
     except Exception as e:
         log.debug(f"Error in chat completion: {e}")
-        if metadata.get("chat_id") and metadata.get("message_id"):
+        if (
+            metadata.get("chat_id")
+            and metadata.get("message_id")
+            and can_update_chat(metadata["chat_id"], user)
+        ):
             # Update the chat message with the error
             Chats.upsert_message_to_chat_by_id_and_message_id(
                 metadata["chat_id"],
@@ -1392,6 +1419,9 @@ async def chat_completion(
                     "error": {"content": str(e)},
                 },
             )
+
+        if isinstance(e, HTTPException):
+            raise e
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
