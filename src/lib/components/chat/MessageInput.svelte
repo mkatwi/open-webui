@@ -29,7 +29,8 @@
 		blobToFile,
 		compressImage,
 		createMessagesList,
-		extractCurlyBraceWords
+		extractCurlyBraceWords,
+		getImageCompressionDimensions
 	} from '$lib/utils';
 	import { uploadFile } from '$lib/apis/files';
 	import { generateAutoCompletion } from '$lib/apis';
@@ -360,25 +361,7 @@
 						($config?.file?.image_compression?.width ?? null) ||
 						($config?.file?.image_compression?.height ?? null)
 					) {
-						let width = null;
-						let height = null;
-
-						if ($settings?.imageCompression ?? false) {
-							width = $settings?.imageCompressionSize?.width ?? null;
-							height = $settings?.imageCompressionSize?.height ?? null;
-						}
-
-						if (
-							($config?.file?.image_compression?.width ?? null) ||
-							($config?.file?.image_compression?.height ?? null)
-						) {
-							if (width > ($config?.file?.image_compression?.width ?? null)) {
-								width = $config?.file?.image_compression?.width ?? null;
-							}
-							if (height > ($config?.file?.image_compression?.height ?? null)) {
-								height = $config?.file?.image_compression?.height ?? null;
-							}
-						}
+						const { width, height } = getImageCompressionDimensions($settings, $config?.file);
 
 						if (width || height) {
 							imageUrl = await compressImage(imageUrl, width, height);
