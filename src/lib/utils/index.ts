@@ -26,6 +26,52 @@ import hljs from 'highlight.js';
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const normalizeImageCompressionDimension = (value: unknown): number | null => {
+	if (value === null || value === undefined || value === '') {
+		return null;
+	}
+
+	const dimension = typeof value === 'number' ? value : Number(value);
+	return Number.isFinite(dimension) && dimension > 0 ? dimension : null;
+};
+
+export const getImageCompressionDimensions = (
+	settings: {
+		imageCompression?: boolean;
+		imageCompressionSize?: {
+			width?: number | string | null;
+			height?: number | string | null;
+		};
+	} | null | undefined,
+	fileConfig: {
+		image_compression?: {
+			width?: number | string | null;
+			height?: number | string | null;
+		};
+	} | null | undefined
+) => {
+	const userCompressionEnabled = settings?.imageCompression ?? false;
+	const configuredWidth = normalizeImageCompressionDimension(fileConfig?.image_compression?.width);
+	const configuredHeight = normalizeImageCompressionDimension(fileConfig?.image_compression?.height);
+
+	let width = userCompressionEnabled
+		? normalizeImageCompressionDimension(settings?.imageCompressionSize?.width)
+		: null;
+	let height = userCompressionEnabled
+		? normalizeImageCompressionDimension(settings?.imageCompressionSize?.height)
+		: null;
+
+	if (configuredWidth !== null) {
+		width = width !== null ? Math.min(width, configuredWidth) : configuredWidth;
+	}
+
+	if (configuredHeight !== null) {
+		height = height !== null ? Math.min(height, configuredHeight) : configuredHeight;
+	}
+
+	return { width, height };
+};
+
 function escapeRegExp(string: string): string {
 	return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

@@ -7,7 +7,7 @@
 	const i18n = getContext('i18n');
 
 	import { config, mobile, settings, socket } from '$lib/stores';
-	import { blobToFile, compressImage } from '$lib/utils';
+	import { blobToFile, compressImage, getImageCompressionDimensions } from '$lib/utils';
 
 	import Tooltip from '../common/Tooltip.svelte';
 	import RichTextInput from '../common/RichTextInput.svelte';
@@ -115,25 +115,7 @@
 						($config?.file?.image_compression?.width ?? null) ||
 						($config?.file?.image_compression?.height ?? null)
 					) {
-						let width = null;
-						let height = null;
-
-						if ($settings?.imageCompression ?? false) {
-							width = $settings?.imageCompressionSize?.width ?? null;
-							height = $settings?.imageCompressionSize?.height ?? null;
-						}
-
-						if (
-							($config?.file?.image_compression?.width ?? null) ||
-							($config?.file?.image_compression?.height ?? null)
-						) {
-							if (width > ($config?.file?.image_compression?.width ?? null)) {
-								width = $config?.file?.image_compression?.width ?? null;
-							}
-							if (height > ($config?.file?.image_compression?.height ?? null)) {
-								height = $config?.file?.image_compression?.height ?? null;
-							}
-						}
+						const { width, height } = getImageCompressionDimensions($settings, $config?.file);
 
 						if (width || height) {
 							imageUrl = await compressImage(imageUrl, width, height);
