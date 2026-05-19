@@ -450,6 +450,7 @@ from open_webui.utils.redis import get_redis_connection
 from open_webui.tasks import (
     redis_task_command_listener,
     list_task_ids_by_chat_id,
+    get_task_chat_id,
     stop_task,
     list_tasks,
 )  # Import from tasks.py
@@ -1447,6 +1448,17 @@ async def stop_task_endpoint(
     request: Request, task_id: str, user=Depends(get_verified_user)
 ):
     try:
+        chat_id = await get_task_chat_id(request, task_id)
+        if chat_id is None:
+            raise ValueError(f"Task with ID {task_id} not found.")
+
+        chat = Chats.get_chat_by_id(chat_id)
+        if chat is None or (chat.user_id != user.id and user.role != "admin"):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Task with ID {task_id} not found.",
+            )
+
         result = await stop_task(request, task_id)
         return result
     except ValueError as e:
@@ -1454,7 +1466,7 @@ async def stop_task_endpoint(
 
 
 @app.get("/api/tasks")
-async def list_tasks_endpoint(request: Request, user=Depends(get_verified_user)):
+async def list_tasks_endpoint(request: Request, user=Depends(get_admin_user)):
     return {"tasks": await list_tasks(request)}
 
 
