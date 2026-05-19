@@ -135,6 +135,20 @@ async def list_task_ids_by_chat_id(request, id):
     return chat_tasks.get(id, [])
 
 
+async def get_task_chat_id(request, task_id: str) -> Optional[str]:
+    """
+    Return the chat ID associated with a task, if the task is chat-scoped.
+    """
+    if is_redis(request):
+        return await request.app.state.redis.hget(REDIS_TASKS_KEY, task_id)
+
+    for chat_id, task_ids in chat_tasks.items():
+        if chat_id and task_id in task_ids:
+            return chat_id
+
+    return None
+
+
 async def stop_task(request, task_id: str):
     """
     Cancel a running task and remove it from the global task list.
