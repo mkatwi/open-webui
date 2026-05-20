@@ -63,6 +63,16 @@ router = APIRouter()
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MAIN"])
 
+
+def sync_external_user_groups(
+    user_id: str, group_names: list[str], create_missing: bool = False
+) -> bool:
+    if create_missing and group_names:
+        Groups.create_groups_by_group_names(user_id, group_names)
+
+    return Groups.sync_groups_by_group_names(user_id, group_names)
+
+
 ############################
 # GetSessionUser
 ############################
@@ -412,19 +422,20 @@ async def ldap_auth(request: Request, response: Response, form_data: LdapForm):
                     user.id, request.app.state.config.USER_PERMISSIONS
                 )
 
-                if (
-                    user.role != "admin"
-                    and ENABLE_LDAP_GROUP_MANAGEMENT
-                    and user_groups
-                ):
-                    if ENABLE_LDAP_GROUP_CREATION:
-                        Groups.create_groups_by_group_names(user.id, user_groups)
-
+                if user.role != "admin" and ENABLE_LDAP_GROUP_MANAGEMENT:
                     try:
-                        Groups.sync_groups_by_group_names(user.id, user_groups)
-                        log.info(
-                            f"Successfully synced groups for user {user.id}: {user_groups}"
-                        )
+                        if sync_external_user_groups(
+                            user.id,
+                            user_groups,
+                            create_missing=ENABLE_LDAP_GROUP_CREATION,
+                        ):
+                            log.info(
+                                f"Successfully synced groups for user {user.id}: {user_groups}"
+                            )
+                        else:
+                            log.error(
+                                f"Failed to sync groups for user {user.id}: {user_groups}"
+                            )
                     except Exception as e:
                         log.error(f"Failed to sync groups for user {user.id}: {e}")
 
@@ -479,8 +490,7 @@ async def signin(request: Request, response: Response, form_data: SigninForm):
             ).split(",")
             group_names = [name.strip() for name in group_names if name.strip()]
 
-            if group_names:
-                Groups.sync_groups_by_group_names(user.id, group_names)
+            sync_external_user_groups(user.id, group_names)
 
     elif WEBUI_AUTH == False:
         admin_email = "admin@localhost"
