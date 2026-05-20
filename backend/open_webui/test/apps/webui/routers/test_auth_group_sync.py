@@ -68,7 +68,7 @@ def test_trusted_header_signin_syncs_empty_group_header(monkeypatch):
         headers={"x-email": "user@example.com"},
         app=SimpleNamespace(
             state=SimpleNamespace(
-                config=SimpleNamespace(JWT_EXPIRES_IN="", USER_PERMISSIONS={})
+                config=SimpleNamespace(JWT_EXPIRES_IN="0", USER_PERMISSIONS={})
             )
         ),
     )
