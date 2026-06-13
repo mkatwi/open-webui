@@ -82,6 +82,7 @@ from open_webui.utils.filter import (
     process_filter_functions,
 )
 from open_webui.utils.code_interpreter import execute_code_jupyter
+from open_webui.utils.access_control import has_permission
 
 from open_webui.tasks import create_task
 
@@ -719,6 +720,14 @@ def apply_params_to_form_data(form_data, model):
 
 async def process_chat_payload(request, form_data, user, metadata, model):
     form_data = apply_params_to_form_data(form_data, model)
+    if user.role != "admin" and not has_permission(
+        user.id, "chat.system_prompt", request.app.state.config.USER_PERMISSIONS
+    ):
+        form_data["messages"] = [
+            message
+            for message in form_data.get("messages", [])
+            if message.get("role") != "system"
+        ]
     log.debug(f"form_data: {form_data}")
 
     event_emitter = get_event_emitter(metadata)

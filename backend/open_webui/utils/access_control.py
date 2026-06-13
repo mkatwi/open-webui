@@ -14,6 +14,13 @@ def fill_missing_permissions(
     Recursively fills in missing properties in the permissions dictionary
     using the default permissions as a template.
     """
+    if (
+        "controls" in permissions
+        and "system_prompt" in default_permissions
+        and "system_prompt" not in permissions
+    ):
+        permissions["system_prompt"] = permissions["controls"]
+
     for key, value in default_permissions.items():
         if key not in permissions:
             permissions[key] = value

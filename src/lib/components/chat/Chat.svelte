@@ -1593,8 +1593,12 @@
 			params?.stream_response ??
 			true;
 
+		const canUseSystemPrompt =
+			$user?.role === 'admin' ||
+			($user?.permissions?.chat?.system_prompt ?? $user?.permissions?.chat?.controls ?? true);
+
 		let messages = [
-			params?.system || $settings.system
+			canUseSystemPrompt && (params?.system || $settings.system)
 				? {
 						role: 'system',
 						content: `${promptTemplate(
@@ -1651,6 +1655,7 @@
 				params: {
 					...$settings?.params,
 					...params,
+					...(canUseSystemPrompt ? {} : { system: undefined }),
 					stop:
 						(params?.stop ?? $settings?.params?.stop ?? undefined)
 							? (params?.stop.split(',').map((token) => token.trim()) ?? $settings.params.stop).map(
