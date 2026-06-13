@@ -76,6 +76,48 @@ from pydub import AudioSegment
 from pydub.utils import mediainfo
 
 
+DEFAULT_STT_SUPPORTED_CONTENT_TYPES = [
+    "audio/*",
+    "video/webm",
+]
+
+
+def normalize_content_type(content_type: Optional[str]) -> str:
+    return (content_type or "").split(";", 1)[0].strip().lower()
+
+
+def normalize_content_types(content_types: Optional[list[str]]) -> list[str]:
+    return [
+        normalized
+        for normalized in (
+            normalize_content_type(content_type)
+            for content_type in (content_types or [])
+        )
+        if normalized
+    ]
+
+
+def get_stt_supported_content_types(content_types: Optional[list[str]]) -> list[str]:
+    supported_content_types = normalize_content_types(content_types)
+
+    return supported_content_types or DEFAULT_STT_SUPPORTED_CONTENT_TYPES
+
+
+def is_stt_content_type_supported(
+    content_type: Optional[str], supported_content_types: Optional[list[str]]
+) -> bool:
+    normalized_content_type = normalize_content_type(content_type)
+    if not normalized_content_type:
+        return False
+
+    return any(
+        fnmatch(normalized_content_type, supported_content_type)
+        for supported_content_type in get_stt_supported_content_types(
+            supported_content_types
+        )
+    )
+
+
 def is_audio_conversion_required(file_path):
     """
     Check if the given audio file needs conversion to mp3.
@@ -239,7 +281,7 @@ async def update_audio_config(
     request.app.state.config.STT_ENGINE = form_data.stt.ENGINE
     request.app.state.config.STT_MODEL = form_data.stt.MODEL
     request.app.state.config.STT_SUPPORTED_CONTENT_TYPES = (
-        form_data.stt.SUPPORTED_CONTENT_TYPES
+        normalize_content_types(form_data.stt.SUPPORTED_CONTENT_TYPES)
     )
 
     request.app.state.config.WHISPER_MODEL = form_data.stt.WHISPER_MODEL
@@ -919,14 +961,8 @@ def transcription(
 ):
     log.info(f"file.content_type: {file.content_type}")
 
-    supported_content_types = request.app.state.config.STT_SUPPORTED_CONTENT_TYPES or [
-        "audio/*",
-        "video/webm",
-    ]
-
-    if not any(
-        fnmatch(file.content_type, content_type)
-        for content_type in supported_content_types
+    if not is_stt_content_type_supported(
+        file.content_type, request.app.state.config.STT_SUPPORTED_CONTENT_TYPES
     ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

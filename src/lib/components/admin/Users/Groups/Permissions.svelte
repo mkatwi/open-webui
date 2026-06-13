@@ -21,6 +21,7 @@
 		},
 		chat: {
 			controls: true,
+			system_prompt: true,
 			file_upload: true,
 			delete: true,
 			edit: true,
