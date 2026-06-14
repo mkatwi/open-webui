@@ -27,12 +27,13 @@ def make_file(id="file-1", user_id="owner-1"):
 
 
 def make_request(**config_overrides):
-    config = SimpleNamespace(
-        BYPASS_EMBEDDING_AND_RETRIEVAL=True,
-        ENABLE_RAG_HYBRID_SEARCH=False,
-        TOP_K=3,
+    config_values = {
+        "BYPASS_EMBEDDING_AND_RETRIEVAL": True,
+        "ENABLE_RAG_HYBRID_SEARCH": False,
+        "TOP_K": 3,
         **config_overrides,
-    )
+    }
+    config = SimpleNamespace(**config_values)
     return SimpleNamespace(
         app=SimpleNamespace(
             state=SimpleNamespace(
