@@ -1,4 +1,5 @@
-from types import SimpleNamespace
+import sys
+from types import ModuleType, SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
@@ -46,6 +47,99 @@ def make_request(**config_overrides):
     )
 
 
+def import_retrieval(monkeypatch):
+    if "open_webui.routers.retrieval" in sys.modules:
+        return sys.modules["open_webui.routers.retrieval"]
+
+    def stub_module(name, **attrs):
+        module = ModuleType(name)
+        for attr, value in attrs.items():
+            setattr(module, attr, value)
+        monkeypatch.setitem(sys.modules, name, module)
+        return module
+
+    stub_module(
+        "open_webui.models.files",
+        FileModel=object,
+        Files=SimpleNamespace(),
+    )
+    stub_module(
+        "open_webui.models.knowledge",
+        Knowledges=SimpleNamespace(),
+    )
+    stub_module(
+        "open_webui.utils.access_control",
+        has_access=lambda *args, **kwargs: False,
+    )
+    stub_module(
+        "open_webui.storage.provider",
+        Storage=SimpleNamespace(get_file=lambda path: path),
+    )
+    stub_module(
+        "open_webui.retrieval.vector.factory",
+        VECTOR_DB_CLIENT=SimpleNamespace(),
+    )
+    stub_module(
+        "open_webui.retrieval.loaders.main",
+        Loader=object,
+    )
+    stub_module(
+        "open_webui.retrieval.loaders.youtube",
+        YoutubeLoader=object,
+    )
+    stub_module(
+        "open_webui.retrieval.utils",
+        get_embedding_function=lambda *args, **kwargs: None,
+        get_model_path=lambda model, *args, **kwargs: model,
+        query_collection=lambda *args, **kwargs: None,
+        query_collection_with_hybrid_search=lambda *args, **kwargs: None,
+        query_doc=lambda *args, **kwargs: None,
+        query_doc_with_hybrid_search=lambda *args, **kwargs: None,
+    )
+
+    class SearchResult(SimpleNamespace):
+        pass
+
+    stub_module("open_webui.retrieval.web.main", SearchResult=SearchResult)
+    stub_module(
+        "open_webui.retrieval.web.utils",
+        get_web_loader=lambda *args, **kwargs: None,
+    )
+
+    search_modules = {
+        "brave": "search_brave",
+        "kagi": "search_kagi",
+        "mojeek": "search_mojeek",
+        "bocha": "search_bocha",
+        "duckduckgo": "search_duckduckgo",
+        "google_pse": "search_google_pse",
+        "jina_search": "search_jina",
+        "searchapi": "search_searchapi",
+        "serpapi": "search_serpapi",
+        "searxng": "search_searxng",
+        "yacy": "search_yacy",
+        "serper": "search_serper",
+        "serply": "search_serply",
+        "serpstack": "search_serpstack",
+        "tavily": "search_tavily",
+        "bing": "search_bing",
+        "exa": "search_exa",
+        "perplexity": "search_perplexity",
+        "sougou": "search_sougou",
+        "firecrawl": "search_firecrawl",
+        "external": "search_external",
+    }
+    for module_name, function_name in search_modules.items():
+        stub_module(
+            f"open_webui.retrieval.web.{module_name}",
+            **{function_name: lambda *args, **kwargs: []},
+        )
+
+    from open_webui.routers import retrieval
+
+    return retrieval
+
+
 def test_trusted_header_auth_rejects_jwt_without_header(monkeypatch):
     from open_webui.utils import auth
 
@@ -91,7 +185,7 @@ def test_trusted_header_auth_allows_case_insensitive_match(monkeypatch):
 
 
 def test_process_file_rejects_cross_user_file_before_writes(monkeypatch):
-    from open_webui.routers import retrieval
+    retrieval = import_retrieval(monkeypatch)
 
     victim_file = make_file(id="victim-file", user_id="owner-1")
     updates = []
@@ -121,7 +215,7 @@ def test_process_file_rejects_cross_user_file_before_writes(monkeypatch):
 
 
 def test_process_file_allows_owner(monkeypatch):
-    from open_webui.routers import retrieval
+    retrieval = import_retrieval(monkeypatch)
 
     owner = make_user(id="owner-1")
     owner_file = make_file(id="owner-file", user_id=owner.id)
@@ -153,7 +247,7 @@ def test_process_file_allows_owner(monkeypatch):
 
 
 def test_query_doc_rejects_cross_user_file_collection_before_embedding(monkeypatch):
-    from open_webui.routers import retrieval
+    retrieval = import_retrieval(monkeypatch)
 
     victim_file = make_file(id="victim-file", user_id="owner-1")
     files = SimpleNamespace(
