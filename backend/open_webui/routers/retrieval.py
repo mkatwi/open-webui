@@ -79,6 +79,7 @@ from open_webui.utils.misc import (
     calculate_sha256_string,
 )
 from open_webui.utils.auth import get_admin_user, get_verified_user
+from open_webui.utils.access_control import has_access
 
 from open_webui.config import (
     ENV,
@@ -105,6 +106,51 @@ from open_webui.constants import ERROR_MESSAGES
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["RAG"])
+
+
+def user_has_access_to_file(file: FileModel, access_type: str, user) -> bool:
+    if user.role == "admin" or file.user_id == user.id:
+        return True
+
+    knowledge_base_id = file.meta.get("collection_name") if file.meta else None
+    if not knowledge_base_id:
+        return False
+
+    knowledge_bases = Knowledges.get_knowledge_bases_by_user_id(user.id, access_type)
+    return any(
+        knowledge_base.id == knowledge_base_id for knowledge_base in knowledge_bases
+    )
+
+
+def require_file_access(file: Optional[FileModel], access_type: str, user) -> None:
+    if not file or not user_has_access_to_file(file, access_type, user):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ERROR_MESSAGES.NOT_FOUND,
+        )
+
+
+def require_collection_access(
+    collection_name: Optional[str], access_type: str, user
+) -> None:
+    if not collection_name:
+        return
+
+    if collection_name.startswith("file-"):
+        file_id = collection_name[len("file-") :]
+        require_file_access(Files.get_file_by_id(file_id), access_type, user)
+        return
+
+    knowledge = Knowledges.get_knowledge_by_id(collection_name)
+    if knowledge and not (
+        user.role == "admin"
+        or knowledge.user_id == user.id
+        or has_access(user.id, access_type, knowledge.access_control)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ERROR_MESSAGES.NOT_FOUND,
+        )
 
 ##########################################
 #
@@ -1277,11 +1323,13 @@ def process_file(
 ):
     try:
         file = Files.get_file_by_id(form_data.file_id)
+        require_file_access(file, "write", user)
 
         collection_name = form_data.collection_name
 
         if collection_name is None:
             collection_name = f"file-{file.id}"
+        require_collection_access(collection_name, "write", user)
 
         if form_data.content:
             # Update the content in the file
@@ -1453,6 +1501,8 @@ def process_file(
                 "content": text_content,
             }
 
+    except HTTPException:
+        raise
     except Exception as e:
         log.exception(e)
         if "No pandoc was found" in str(e):
@@ -1965,6 +2015,7 @@ def query_doc_handler(
     user=Depends(get_verified_user),
 ):
     try:
+        require_collection_access(form_data.collection_name, "read", user)
         if request.app.state.config.ENABLE_RAG_HYBRID_SEARCH:
             collection_results = {}
             collection_results[form_data.collection_name] = VECTOR_DB_CLIENT.get(
@@ -2002,6 +2053,8 @@ def query_doc_handler(
                 k=form_data.k if form_data.k else request.app.state.config.TOP_K,
                 user=user,
             )
+    except HTTPException:
+        raise
     except Exception as e:
         log.exception(e)
         raise HTTPException(
@@ -2027,6 +2080,9 @@ def query_collection_handler(
     user=Depends(get_verified_user),
 ):
     try:
+        for collection_name in form_data.collection_names:
+            require_collection_access(collection_name, "read", user)
+
         if request.app.state.config.ENABLE_RAG_HYBRID_SEARCH:
             return query_collection_with_hybrid_search(
                 collection_names=form_data.collection_names,
@@ -2059,6 +2115,8 @@ def query_collection_handler(
                 k=form_data.k if form_data.k else request.app.state.config.TOP_K,
             )
 
+    except HTTPException:
+        raise
     except Exception as e:
         log.exception(e)
         raise HTTPException(
