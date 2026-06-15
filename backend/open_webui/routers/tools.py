@@ -22,7 +22,7 @@ from open_webui.utils.auth import get_admin_user, get_verified_user
 from open_webui.utils.access_control import has_access, has_permission
 from open_webui.env import SRC_LOG_LEVELS
 
-from open_webui.utils.tools import get_tool_servers_data
+from open_webui.utils.tools import can_access_tool, get_tool_servers_data
 
 
 log = logging.getLogger(__name__)
@@ -380,6 +380,12 @@ async def delete_tools_by_id(
 async def get_tools_valves_by_id(id: str, user=Depends(get_verified_user)):
     tools = Tools.get_tool_by_id(id)
     if tools:
+        if not can_access_tool(user, tools, "read"):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=ERROR_MESSAGES.UNAUTHORIZED,
+            )
+
         try:
             valves = Tools.get_tool_valves_by_id(id)
             return valves
@@ -406,6 +412,12 @@ async def get_tools_valves_spec_by_id(
 ):
     tools = Tools.get_tool_by_id(id)
     if tools:
+        if not can_access_tool(user, tools, "read"):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=ERROR_MESSAGES.UNAUTHORIZED,
+            )
+
         if id in request.app.state.TOOLS:
             tools_module = request.app.state.TOOLS[id]
         else:
