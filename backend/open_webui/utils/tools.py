@@ -35,6 +35,7 @@ from langchain_core.utils.function_calling import (
 
 from open_webui.models.tools import Tools
 from open_webui.models.users import UserModel
+from open_webui.utils.access_control import has_access
 from open_webui.utils.plugin import load_tool_module_by_id
 from open_webui.env import (
     SRC_LOG_LEVELS,
@@ -46,6 +47,24 @@ import copy
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
+
+
+def can_access_tool(user: UserModel, tool, permission: str = "read") -> bool:
+    return (
+        user.role == "admin"
+        or tool.user_id == user.id
+        or has_access(user.id, permission, tool.access_control)
+    )
+
+
+def can_access_tool_server(
+    user: UserModel, tool_server_connection: dict, permission: str = "read"
+) -> bool:
+    return user.role == "admin" or has_access(
+        user.id,
+        permission,
+        tool_server_connection.get("config", {}).get("access_control", None),
+    )
 
 
 def get_async_tool_function_and_apply_extra_params(
@@ -80,6 +99,9 @@ def get_tools(
                 tool_server_connection = (
                     request.app.state.config.TOOL_SERVER_CONNECTIONS[server_idx]
                 )
+                if not can_access_tool_server(user, tool_server_connection, "read"):
+                    continue
+
                 tool_server_data = None
                 for server in request.app.state.TOOL_SERVERS:
                     if server["idx"] == server_idx:
@@ -140,6 +162,9 @@ def get_tools(
             else:
                 continue
         else:
+            if not can_access_tool(user, tool, "read"):
+                continue
+
             module = request.app.state.TOOLS.get(tool_id, None)
             if module is None:
                 module, _ = load_tool_module_by_id(tool_id)
