@@ -80,7 +80,7 @@
 				src={safeIframeSrc}
 				title="Embedded content"
 				frameborder="0"
-				sandbox
+				sandbox=""
 				onload="this.style.height=(this.contentWindow.document.body.scrollHeight+20)+'px';"
 			></iframe>
 		{:else}
