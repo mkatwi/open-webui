@@ -1,8 +1,10 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import DOMPurify from 'dompurify';
 	import type { Token } from 'marked';
 
 	import { WEBUI_BASE_URL } from '$lib/constants';
+	import { extractIframeSrc, getSafeIframeSrc } from '$lib/utils/iframe';
 	import Source from './Source.svelte';
 	import { settings } from '$lib/stores';
 
@@ -70,12 +72,12 @@
 			</iframe>
 		{/if}
 	{:else if token.text && token.text.includes('<iframe')}
-		{@const match = token.text.match(/<iframe\s+[^>]*src="([^"]+)"[^>]*><\/iframe>/)}
-		{@const iframeSrc = match && match[1]}
-		{#if iframeSrc}
+		{@const iframeSrc = extractIframeSrc(token.text)}
+		{@const safeIframeSrc = browser ? getSafeIframeSrc(iframeSrc, window.location.origin) : null}
+		{#if safeIframeSrc}
 			<iframe
 				class="w-full my-2"
-				src={iframeSrc}
+				src={safeIframeSrc}
 				title="Embedded content"
 				frameborder="0"
 				sandbox
