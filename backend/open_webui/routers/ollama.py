@@ -47,8 +47,8 @@ from open_webui.utils.payload import (
     apply_model_params_to_body_ollama,
     apply_model_params_to_body_openai,
     apply_model_system_prompt_to_body,
-    remove_system_prompts_from_body,
 )
+from open_webui.utils.system_prompts import remove_system_prompts_from_body
 from open_webui.utils.auth import get_admin_user, get_verified_user
 from open_webui.utils.access_control import has_access, has_permission
 

@@ -1,4 +1,4 @@
-from open_webui.utils.payload import (
+from open_webui.utils.system_prompts import (
     remove_system_prompts_from_body,
     remove_system_prompts_from_settings,
 )

@@ -434,7 +434,7 @@ from open_webui.utils.chat import (
 from open_webui.utils.embeddings import generate_embeddings
 from open_webui.utils.middleware import process_chat_payload, process_chat_response
 from open_webui.utils.access_control import has_access, has_permission
-from open_webui.utils.payload import remove_system_prompts_from_body
+from open_webui.utils.system_prompts import remove_system_prompts_from_body
 
 from open_webui.utils.auth import (
     get_license_data,

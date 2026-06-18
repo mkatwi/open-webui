@@ -36,8 +36,8 @@ from open_webui.env import ENV, SRC_LOG_LEVELS
 from open_webui.utils.payload import (
     apply_model_params_to_body_openai,
     apply_model_system_prompt_to_body,
-    remove_system_prompts_from_body,
 )
+from open_webui.utils.system_prompts import remove_system_prompts_from_body
 from open_webui.utils.misc import (
     convert_logit_bias_input_to_json,
 )

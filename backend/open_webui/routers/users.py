@@ -26,7 +26,7 @@ from pydantic import BaseModel
 
 from open_webui.utils.auth import get_admin_user, get_password_hash, get_verified_user
 from open_webui.utils.access_control import get_permissions, has_permission
-from open_webui.utils.payload import remove_system_prompts_from_settings
+from open_webui.utils.system_prompts import remove_system_prompts_from_settings
 
 
 log = logging.getLogger(__name__)
