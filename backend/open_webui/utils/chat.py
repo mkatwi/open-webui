@@ -165,6 +165,8 @@ async def generate_chat_completion(
     bypass_filter: bool = False,
 ):
     log.debug(f"generate_chat_completion: {form_data}")
+    request.state.system_prompt_permission_checked = True
+
     if BYPASS_MODEL_ACCESS_CONTROL:
         bypass_filter = True
 

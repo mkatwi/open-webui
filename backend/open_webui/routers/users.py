@@ -26,6 +26,7 @@ from pydantic import BaseModel
 
 from open_webui.utils.auth import get_admin_user, get_password_hash, get_verified_user
 from open_webui.utils.access_control import get_permissions, has_permission
+from open_webui.utils.payload import remove_system_prompts_from_settings
 
 
 log = logging.getLogger(__name__)
@@ -226,6 +227,13 @@ async def update_user_settings_by_session_user(
     ):
         # If the user is not an admin and does not have permission to use tool servers, remove the key
         updated_user_settings["ui"].pop("toolServers", None)
+
+    if user.role != "admin" and not has_permission(
+        user.id, "chat.system_prompt", request.app.state.config.USER_PERMISSIONS
+    ):
+        updated_user_settings = remove_system_prompts_from_settings(
+            updated_user_settings
+        )
 
     user = Users.update_user_settings_by_id(user.id, updated_user_settings)
     if user:

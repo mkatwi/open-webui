@@ -433,7 +433,8 @@ from open_webui.utils.chat import (
 )
 from open_webui.utils.embeddings import generate_embeddings
 from open_webui.utils.middleware import process_chat_payload, process_chat_response
-from open_webui.utils.access_control import has_access
+from open_webui.utils.access_control import has_access, has_permission
+from open_webui.utils.payload import remove_system_prompts_from_body
 
 from open_webui.utils.auth import (
     get_license_data,
@@ -1297,6 +1298,12 @@ async def chat_completion(
     form_data: dict,
     user=Depends(get_verified_user),
 ):
+    if user.role != "admin" and not has_permission(
+        user.id, "chat.system_prompt", request.app.state.config.USER_PERMISSIONS
+    ):
+        form_data = remove_system_prompts_from_body(form_data)
+    request.state.system_prompt_permission_checked = True
+
     if not request.app.state.MODELS:
         await get_all_models(request, user=user)
 
