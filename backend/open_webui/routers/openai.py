@@ -37,12 +37,13 @@ from open_webui.utils.payload import (
     apply_model_params_to_body_openai,
     apply_model_system_prompt_to_body,
 )
+from open_webui.utils.system_prompts import remove_system_prompts_from_body
 from open_webui.utils.misc import (
     convert_logit_bias_input_to_json,
 )
 
 from open_webui.utils.auth import get_admin_user, get_verified_user
-from open_webui.utils.access_control import has_access
+from open_webui.utils.access_control import has_access, has_permission
 
 
 log = logging.getLogger(__name__)
@@ -704,6 +705,16 @@ async def generate_chat_completion(
 
     payload = {**form_data}
     metadata = payload.pop("metadata", None)
+
+    if (
+        not getattr(request.state, "system_prompt_permission_checked", False)
+        and user.role != "admin"
+        and not has_permission(
+            user.id, "chat.system_prompt", request.app.state.config.USER_PERMISSIONS
+        )
+    ):
+        payload = remove_system_prompts_from_body(payload)
+    request.state.system_prompt_permission_checked = True
 
     model_id = form_data.get("model")
     model_info = Models.get_model_by_id(model_id)

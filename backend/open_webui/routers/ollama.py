@@ -48,8 +48,9 @@ from open_webui.utils.payload import (
     apply_model_params_to_body_openai,
     apply_model_system_prompt_to_body,
 )
+from open_webui.utils.system_prompts import remove_system_prompts_from_body
 from open_webui.utils.auth import get_admin_user, get_verified_user
-from open_webui.utils.access_control import has_access
+from open_webui.utils.access_control import has_access, has_permission
 
 
 from open_webui.config import (
@@ -1274,6 +1275,17 @@ async def generate_chat_completion(
         bypass_filter = True
 
     metadata = form_data.pop("metadata", None)
+
+    if (
+        not getattr(request.state, "system_prompt_permission_checked", False)
+        and user.role != "admin"
+        and not has_permission(
+            user.id, "chat.system_prompt", request.app.state.config.USER_PERMISSIONS
+        )
+    ):
+        form_data = remove_system_prompts_from_body(form_data)
+    request.state.system_prompt_permission_checked = True
+
     try:
         form_data = GenerateChatCompletionForm(**form_data)
     except Exception as e:
@@ -1458,6 +1470,16 @@ async def generate_openai_chat_completion(
     user=Depends(get_verified_user),
 ):
     metadata = form_data.pop("metadata", None)
+
+    if (
+        not getattr(request.state, "system_prompt_permission_checked", False)
+        and user.role != "admin"
+        and not has_permission(
+            user.id, "chat.system_prompt", request.app.state.config.USER_PERMISSIONS
+        )
+    ):
+        form_data = remove_system_prompts_from_body(form_data)
+    request.state.system_prompt_permission_checked = True
 
     try:
         completion_form = OpenAIChatCompletionForm(**form_data)
