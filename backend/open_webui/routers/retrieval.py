@@ -851,13 +851,25 @@ async def update_rag_config(
     )
 
     # File upload settings
-    request.app.state.config.FILE_MAX_SIZE = form_data.FILE_MAX_SIZE
-    request.app.state.config.FILE_MAX_COUNT = form_data.FILE_MAX_COUNT
+    request.app.state.config.FILE_MAX_SIZE = (
+        form_data.FILE_MAX_SIZE
+        if form_data.FILE_MAX_SIZE is not None
+        else request.app.state.config.FILE_MAX_SIZE
+    )
+    request.app.state.config.FILE_MAX_COUNT = (
+        form_data.FILE_MAX_COUNT
+        if form_data.FILE_MAX_COUNT is not None
+        else request.app.state.config.FILE_MAX_COUNT
+    )
     request.app.state.config.FILE_IMAGE_COMPRESSION_WIDTH = (
         form_data.FILE_IMAGE_COMPRESSION_WIDTH
+        if form_data.FILE_IMAGE_COMPRESSION_WIDTH is not None
+        else request.app.state.config.FILE_IMAGE_COMPRESSION_WIDTH
     )
     request.app.state.config.FILE_IMAGE_COMPRESSION_HEIGHT = (
         form_data.FILE_IMAGE_COMPRESSION_HEIGHT
+        if form_data.FILE_IMAGE_COMPRESSION_HEIGHT is not None
+        else request.app.state.config.FILE_IMAGE_COMPRESSION_HEIGHT
     )
     request.app.state.config.ALLOWED_FILE_EXTENSIONS = (
         form_data.ALLOWED_FILE_EXTENSIONS
@@ -1166,10 +1178,10 @@ def save_docs_to_vector_db(
     if len(docs) == 0:
         raise ValueError(ERROR_MESSAGES.EMPTY_CONTENT)
 
-    texts = [doc.page_content for doc in docs]
+    texts = [doc.page_content or "" for doc in docs]
     metadatas = [
         {
-            **doc.metadata,
+            **(doc.metadata or {}),
             **(metadata if metadata else {}),
             "embedding_config": json.dumps(
                 {
@@ -1379,9 +1391,9 @@ def process_file(
 
                 docs = [
                     Document(
-                        page_content=doc.page_content,
+                        page_content=doc.page_content or "",
                         metadata={
-                            **doc.metadata,
+                            **(doc.metadata or {}),
                             "name": file.filename,
                             "created_by": file.user_id,
                             "file_id": file.id,
@@ -1403,7 +1415,7 @@ def process_file(
                         },
                     )
                 ]
-            text_content = " ".join([doc.page_content for doc in docs])
+            text_content = " ".join([doc.page_content or "" for doc in docs])
 
         log.debug(f"text_content: {text_content}")
         Files.update_file_data_by_id(

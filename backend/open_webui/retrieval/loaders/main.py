@@ -219,7 +219,8 @@ class Loader:
 
         return [
             Document(
-                page_content=ftfy.fix_text(doc.page_content), metadata=doc.metadata
+                page_content=ftfy.fix_text(doc.page_content or ""),
+                metadata=doc.metadata or {},
             )
             for doc in docs
         ]

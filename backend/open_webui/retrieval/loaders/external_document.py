@@ -10,6 +10,21 @@ log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["RAG"])
 
 
+def _document_from_response(document: dict) -> Document:
+    if not isinstance(document, dict):
+        raise Exception("Error loading document: Unable to parse content")
+
+    page_content = document.get("page_content") or ""
+    if not isinstance(page_content, str):
+        page_content = str(page_content)
+
+    metadata = document.get("metadata") or {}
+    if not isinstance(metadata, dict):
+        metadata = {}
+
+    return Document(page_content=page_content, metadata=metadata)
+
+
 class ExternalDocumentLoader(BaseLoader):
     def __init__(
         self,
@@ -56,21 +71,11 @@ class ExternalDocumentLoader(BaseLoader):
             response_data = response.json()
             if response_data:
                 if isinstance(response_data, dict):
-                    return [
-                        Document(
-                            page_content=response_data.get("page_content"),
-                            metadata=response_data.get("metadata"),
-                        )
-                    ]
+                    return [_document_from_response(response_data)]
                 elif isinstance(response_data, list):
                     documents = []
                     for document in response_data:
-                        documents.append(
-                            Document(
-                                page_content=document.get("page_content"),
-                                metadata=document.get("metadata"),
-                            )
-                        )
+                        documents.append(_document_from_response(document))
                     return documents
                 else:
                     raise Exception("Error loading document: Unable to parse content")
