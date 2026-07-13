@@ -49,6 +49,7 @@ from open_webui.env import (
     DEVICE_TYPE,
     ENABLE_FORWARD_USER_INFO_HEADERS,
 )
+from open_webui.utils.audio import get_stt_supported_content_types
 
 
 router = APIRouter()
@@ -239,7 +240,7 @@ async def update_audio_config(
     request.app.state.config.STT_ENGINE = form_data.stt.ENGINE
     request.app.state.config.STT_MODEL = form_data.stt.MODEL
     request.app.state.config.STT_SUPPORTED_CONTENT_TYPES = (
-        form_data.stt.SUPPORTED_CONTENT_TYPES
+        get_stt_supported_content_types(form_data.stt.SUPPORTED_CONTENT_TYPES)
     )
 
     request.app.state.config.WHISPER_MODEL = form_data.stt.WHISPER_MODEL
@@ -919,12 +920,11 @@ def transcription(
 ):
     log.info(f"file.content_type: {file.content_type}")
 
-    supported_content_types = request.app.state.config.STT_SUPPORTED_CONTENT_TYPES or [
-        "audio/*",
-        "video/webm",
-    ]
+    supported_content_types = get_stt_supported_content_types(
+        request.app.state.config.STT_SUPPORTED_CONTENT_TYPES
+    )
 
-    if not any(
+    if not file.content_type or not any(
         fnmatch(file.content_type, content_type)
         for content_type in supported_content_types
     ):

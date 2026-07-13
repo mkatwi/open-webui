@@ -412,12 +412,8 @@ async def ldap_auth(request: Request, response: Response, form_data: LdapForm):
                     user.id, request.app.state.config.USER_PERMISSIONS
                 )
 
-                if (
-                    user.role != "admin"
-                    and ENABLE_LDAP_GROUP_MANAGEMENT
-                    and user_groups
-                ):
-                    if ENABLE_LDAP_GROUP_CREATION:
+                if user.role != "admin" and ENABLE_LDAP_GROUP_MANAGEMENT:
+                    if ENABLE_LDAP_GROUP_CREATION and user_groups:
                         Groups.create_groups_by_group_names(user.id, user_groups)
 
                     try:
