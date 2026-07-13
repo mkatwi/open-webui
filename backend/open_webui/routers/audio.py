@@ -49,6 +49,7 @@ from open_webui.env import (
     DEVICE_TYPE,
     ENABLE_FORWARD_USER_INFO_HEADERS,
 )
+from open_webui.utils.audio import get_stt_supported_content_types
 
 
 router = APIRouter()
@@ -61,8 +62,6 @@ AZURE_MAX_FILE_SIZE = AZURE_MAX_FILE_SIZE_MB * 1024 * 1024  # Convert MB to byte
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["AUDIO"])
-
-DEFAULT_STT_SUPPORTED_CONTENT_TYPES = ["audio/*", "video/webm"]
 
 SPEECH_CACHE_DIR = CACHE_DIR / "audio" / "speech"
 SPEECH_CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -106,15 +105,6 @@ def is_audio_conversion_required(file_path):
     except Exception as e:
         log.error(f"Error getting audio format: {e}")
         return False
-
-
-def get_stt_supported_content_types(content_types: Optional[list[str]]) -> list[str]:
-    supported_content_types = [
-        content_type.strip()
-        for content_type in (content_types or [])
-        if content_type and content_type.strip()
-    ]
-    return supported_content_types or DEFAULT_STT_SUPPORTED_CONTENT_TYPES
 
 
 def convert_audio_to_mp3(file_path):

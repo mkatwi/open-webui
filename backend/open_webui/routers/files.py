@@ -33,8 +33,9 @@ from open_webui.models.knowledge import Knowledges
 
 from open_webui.routers.knowledge import get_knowledge, get_knowledge_list
 from open_webui.routers.retrieval import ProcessFileForm, process_file
-from open_webui.routers.audio import get_stt_supported_content_types, transcribe
+from open_webui.routers.audio import transcribe
 from open_webui.storage.provider import Storage
+from open_webui.utils.audio import get_stt_supported_content_types
 from open_webui.utils.auth import get_admin_user, get_verified_user
 from pydantic import BaseModel
 
