@@ -48,8 +48,9 @@ from open_webui.utils.payload import (
     apply_model_params_to_body_openai,
     apply_model_system_prompt_to_body,
 )
+from open_webui.utils.messages import remove_user_system_messages_from_body
 from open_webui.utils.auth import get_admin_user, get_verified_user
-from open_webui.utils.access_control import has_access
+from open_webui.utils.access_control import has_access, has_permission
 
 
 from open_webui.config import (
@@ -67,6 +68,17 @@ from open_webui.constants import ERROR_MESSAGES
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["OLLAMA"])
+
+
+def user_can_use_system_prompt(request: Request, user: UserModel) -> bool:
+    if user.role == "admin":
+        return True
+
+    return has_permission(
+        user.id,
+        "chat.system_prompt",
+        request.app.state.config.USER_PERMISSIONS,
+    )
 
 
 ##########################################
@@ -1289,6 +1301,9 @@ async def generate_chat_completion(
     if "metadata" in payload:
         del payload["metadata"]
 
+    if not user_can_use_system_prompt(request, user):
+        payload = remove_user_system_messages_from_body(payload)
+
     model_id = payload["model"]
     model_info = Models.get_model_by_id(model_id)
 
@@ -1471,6 +1486,9 @@ async def generate_openai_chat_completion(
     payload = {**completion_form.model_dump(exclude_none=True, exclude=["metadata"])}
     if "metadata" in payload:
         del payload["metadata"]
+
+    if not user_can_use_system_prompt(request, user):
+        payload = remove_user_system_messages_from_body(payload)
 
     model_id = completion_form.model
     if ":" not in model_id:

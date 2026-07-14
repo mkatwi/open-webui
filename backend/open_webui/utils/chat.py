@@ -45,7 +45,11 @@ from open_webui.utils.plugin import (
     get_function_module_from_cache,
 )
 from open_webui.utils.models import get_all_models, check_model_access
-from open_webui.utils.payload import convert_payload_openai_to_ollama
+from open_webui.utils.payload import (
+    convert_payload_openai_to_ollama,
+)
+from open_webui.utils.messages import remove_user_system_messages_from_body
+from open_webui.utils.access_control import has_permission
 from open_webui.utils.response import (
     convert_response_ollama_to_openai,
     convert_streaming_response_ollama_to_openai,
@@ -61,6 +65,17 @@ from open_webui.env import SRC_LOG_LEVELS, GLOBAL_LOG_LEVEL, BYPASS_MODEL_ACCESS
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MAIN"])
+
+
+def user_can_use_system_prompt(request: Request, user: Any) -> bool:
+    if user.role == "admin":
+        return True
+
+    return has_permission(
+        user.id,
+        "chat.system_prompt",
+        request.app.state.config.USER_PERMISSIONS,
+    )
 
 
 async def generate_direct_chat_completion(
@@ -188,6 +203,9 @@ async def generate_chat_completion(
     model_id = form_data["model"]
     if model_id not in models:
         raise Exception("Model not found")
+
+    if not user_can_use_system_prompt(request, user):
+        form_data = remove_user_system_messages_from_body(form_data)
 
     model = models[model_id]
 
