@@ -639,7 +639,8 @@
 	};
 
 	const hasFileUploadPermission = () => {
-		return $user?.role === 'admin' || ($user?.permissions?.chat?.file_upload ?? true);
+		const sessionUser = $user as any;
+		return sessionUser?.role === 'admin' || (sessionUser?.permissions?.chat?.file_upload ?? true);
 	};
 
 	const ensureFileUploadPermission = () => {
@@ -654,7 +655,11 @@
 	const removeSearchParam = (param: string) => {
 		const url = new URL(window.location.href);
 		url.searchParams.delete(param);
-		window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+		window.history.replaceState(
+			window.history.state,
+			'',
+			`${url.pathname}${url.search}${url.hash}`
+		);
 	};
 
 	const uploadWeb = async (url: string) => {
