@@ -175,12 +175,13 @@ def get_user_ids_from_room(room):
         room=room,
     )
 
-    active_user_ids = list(
-        set(
-            [SESSION_POOL.get(session_id[0])["id"] for session_id in active_session_ids]
-        )
-    )
-    return active_user_ids
+    active_user_ids = set()
+    for session_id in active_session_ids:
+        user = SESSION_POOL.get(session_id[0])
+        if user and user.get("id"):
+            active_user_ids.add(user["id"])
+
+    return list(active_user_ids)
 
 
 def get_active_status_by_user_id(user_id):

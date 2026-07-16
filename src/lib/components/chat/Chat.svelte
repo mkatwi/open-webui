@@ -141,6 +141,7 @@
 	let chatFiles = [];
 	let files = [];
 	let params = {};
+	let consumedLoadUrl = '';
 
 	$: if (chatIdProp) {
 		(async () => {
@@ -637,7 +638,30 @@
 		}
 	};
 
-	const uploadWeb = async (url) => {
+	const hasFileUploadPermission = () => {
+		return $user?.role === 'admin' || ($user?.permissions?.chat?.file_upload ?? true);
+	};
+
+	const ensureFileUploadPermission = () => {
+		if (!hasFileUploadPermission()) {
+			toast.error($i18n.t('You do not have permission to upload files.'));
+			return false;
+		}
+
+		return true;
+	};
+
+	const removeSearchParam = (param: string) => {
+		const url = new URL(window.location.href);
+		url.searchParams.delete(param);
+		window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+	};
+
+	const uploadWeb = async (url: string) => {
+		if (!ensureFileUploadPermission()) {
+			return;
+		}
+
 		console.log(url);
 
 		const fileItem = {
@@ -670,7 +694,11 @@
 		}
 	};
 
-	const uploadYoutubeTranscription = async (url) => {
+	const uploadYoutubeTranscription = async (url: string) => {
+		if (!ensureFileUploadPermission()) {
+			return;
+		}
+
 		console.log(url);
 
 		const fileItem = {
@@ -797,7 +825,21 @@
 		}
 
 		if ($page.url.searchParams.get('load-url')) {
-			await uploadWeb($page.url.searchParams.get('load-url'));
+			const loadUrl = $page.url.searchParams.get('load-url');
+			if (loadUrl && loadUrl !== consumedLoadUrl) {
+				consumedLoadUrl = loadUrl;
+				removeSearchParam('load-url');
+
+				if (
+					window.confirm(
+						$i18n.t('Load web content from {{url}}?', {
+							url: loadUrl
+						})
+					)
+				) {
+					await uploadWeb(loadUrl);
+				}
+			}
 		}
 
 		if ($page.url.searchParams.get('web-search') === 'true') {
