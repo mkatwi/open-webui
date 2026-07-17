@@ -78,7 +78,9 @@ from open_webui.retrieval.utils import (
 from open_webui.utils.misc import (
     calculate_sha256_string,
 )
+from open_webui.utils.access_control import has_permission
 from open_webui.utils.auth import get_admin_user, get_verified_user
+from open_webui.utils.permissions import user_has_permission
 
 from open_webui.config import (
     ENV,
@@ -1833,6 +1835,16 @@ def search_web(request: Request, engine: str, query: str) -> list[SearchResult]:
 async def process_web_search(
     request: Request, form_data: SearchForm, user=Depends(get_verified_user)
 ):
+    if not user_has_permission(
+        user,
+        "features.web_search",
+        request.app.state.config.USER_PERMISSIONS,
+        has_permission,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+        )
 
     urls = []
     try:

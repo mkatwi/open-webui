@@ -76,6 +76,8 @@ from open_webui.utils.misc import (
     convert_logit_bias_input_to_json,
 )
 from open_webui.utils.tools import get_tools
+from open_webui.utils.access_control import has_permission
+from open_webui.utils.permissions import user_has_permission
 from open_webui.utils.plugin import load_function_module_by_id
 from open_webui.utils.filter import (
     get_sorted_filter_ids,
@@ -102,6 +104,19 @@ from open_webui.constants import TASKS
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MAIN"])
+
+
+def require_feature_permission(request: Request, user: UserModel, feature: str) -> None:
+    if not user_has_permission(
+        user,
+        f"features.{feature}",
+        request.app.state.config.USER_PERMISSIONS,
+        has_permission,
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+        )
 
 
 async def chat_completion_tools_handler(
@@ -830,16 +845,19 @@ async def process_chat_payload(request, form_data, user, metadata, model):
             )
 
         if "web_search" in features and features["web_search"]:
+            require_feature_permission(request, user, "web_search")
             form_data = await chat_web_search_handler(
                 request, form_data, extra_params, user
             )
 
         if "image_generation" in features and features["image_generation"]:
+            require_feature_permission(request, user, "image_generation")
             form_data = await chat_image_generation_handler(
                 request, form_data, extra_params, user
             )
 
         if "code_interpreter" in features and features["code_interpreter"]:
+            require_feature_permission(request, user, "code_interpreter")
             form_data["messages"] = add_or_update_user_message(
                 (
                     request.app.state.config.CODE_INTERPRETER_PROMPT_TEMPLATE
@@ -887,6 +905,7 @@ async def process_chat_payload(request, form_data, user, metadata, model):
         )
 
     if tool_servers:
+        require_feature_permission(request, user, "direct_tool_servers")
         for tool_server in tool_servers:
             tool_specs = tool_server.pop("specs", [])
 
