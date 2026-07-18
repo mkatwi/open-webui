@@ -1,13 +1,21 @@
-import sys
+import importlib.util
 from pathlib import Path
 
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
-
-from open_webui.utils.group_sync import (  # noqa: E402
-    parse_group_names_header,
-    sync_user_groups_from_header,
+MODULE_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "backend"
+    / "open_webui"
+    / "utils"
+    / "group_sync.py"
 )
+spec = importlib.util.spec_from_file_location("group_sync", MODULE_PATH)
+assert spec is not None and spec.loader is not None
+group_sync = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(group_sync)
+
+parse_group_names_header = group_sync.parse_group_names_header
+sync_user_groups_from_header = group_sync.sync_user_groups_from_header
 
 
 def test_parse_group_names_header_strips_blanks():
