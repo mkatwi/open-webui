@@ -48,6 +48,7 @@ from open_webui.utils.auth import (
     get_password_hash,
     get_http_authorization_cred,
 )
+from open_webui.utils.group_sync import sync_user_groups_from_header
 from open_webui.utils.webhook import post_webhook
 from open_webui.utils.access_control import get_permissions
 
@@ -474,13 +475,14 @@ async def signin(request: Request, response: Response, form_data: SigninForm):
 
         user = Auths.authenticate_user_by_email(email)
         if WEBUI_AUTH_TRUSTED_GROUPS_HEADER and user and user.role != "admin":
-            group_names = request.headers.get(
-                WEBUI_AUTH_TRUSTED_GROUPS_HEADER, ""
-            ).split(",")
-            group_names = [name.strip() for name in group_names if name.strip()]
-
-            if group_names:
-                Groups.sync_groups_by_group_names(user.id, group_names)
+            sync_user_groups_from_header(
+                user.id,
+                request.headers.get(
+                    WEBUI_AUTH_TRUSTED_GROUPS_HEADER,
+                    "",
+                ),
+                Groups.sync_groups_by_group_names,
+            )
 
     elif WEBUI_AUTH == False:
         admin_email = "admin@localhost"
