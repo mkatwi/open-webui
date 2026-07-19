@@ -22,6 +22,20 @@
 		html = null;
 		genericIframeSrc = null;
 	}
+
+	const resizeIframeToContent = (event: Event) => {
+		const iframe = event.currentTarget as HTMLIFrameElement | null;
+
+		try {
+			const scrollHeight = iframe?.contentWindow?.document?.body?.scrollHeight;
+
+			if (iframe && scrollHeight) {
+				iframe.style.height = `${scrollHeight + 20}px`;
+			}
+		} catch {
+			// Cross-origin or strictly sandboxed iframes cannot expose their document.
+		}
+	};
 </script>
 
 {#if token.type === 'html'}
@@ -81,7 +95,7 @@
 			frameborder="0"
 			sandbox=""
 			referrerpolicy="strict-origin-when-cross-origin"
-			onload="this.style.height=(this.contentWindow.document.body.scrollHeight+20)+'px';"
+			on:load={resizeIframeToContent}
 		></iframe>
 	{:else if token.text && token.text.includes('<iframe')}
 		{token.text}
@@ -100,7 +114,7 @@
 				referrerpolicy="strict-origin-when-cross-origin"
 				allowfullscreen
 				width="100%"
-				onload="this.style.height=(this.contentWindow.document.body.scrollHeight+20)+'px';"
+				on:load={resizeIframeToContent}
 			></iframe>
 		{/if}
 	{:else if token.text.includes(`<source_id`)}
