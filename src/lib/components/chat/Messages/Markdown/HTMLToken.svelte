@@ -79,7 +79,7 @@
 			src={genericIframeSrc}
 			title="Embedded content"
 			frameborder="0"
-			sandbox
+			sandbox=""
 			referrerpolicy="strict-origin-when-cross-origin"
 			onload="this.style.height=(this.contentWindow.document.body.scrollHeight+20)+'px';"
 		></iframe>
