@@ -5,6 +5,7 @@
 	import { WEBUI_BASE_URL } from '$lib/constants';
 	import Source from './Source.svelte';
 	import { settings } from '$lib/stores';
+	import { getSafeGenericIframeSrc } from '$lib/utils/iframe';
 
 	export let id: string;
 	export let token: Token;
@@ -12,12 +13,29 @@
 	export let onSourceClick: Function = () => {};
 
 	let html: string | null = null;
+	let genericIframeSrc: string | null = null;
 
 	$: if (token.type === 'html' && token?.text) {
 		html = DOMPurify.sanitize(token.text);
+		genericIframeSrc = getSafeGenericIframeSrc(token.text);
 	} else {
 		html = null;
+		genericIframeSrc = null;
 	}
+
+	const resizeIframeToContent = (event: Event) => {
+		const iframe = event.currentTarget as HTMLIFrameElement | null;
+
+		try {
+			const scrollHeight = iframe?.contentWindow?.document?.body?.scrollHeight;
+
+			if (iframe && scrollHeight) {
+				iframe.style.height = `${scrollHeight + 20}px`;
+			}
+		} catch {
+			// Cross-origin or strictly sandboxed iframes cannot expose their document.
+		}
+	};
 </script>
 
 {#if token.type === 'html'}
@@ -69,21 +87,18 @@
 			>
 			</iframe>
 		{/if}
+	{:else if genericIframeSrc}
+		<iframe
+			class="w-full my-2"
+			src={genericIframeSrc}
+			title="Embedded content"
+			frameborder="0"
+			sandbox=""
+			referrerpolicy="strict-origin-when-cross-origin"
+			on:load={resizeIframeToContent}
+		></iframe>
 	{:else if token.text && token.text.includes('<iframe')}
-		{@const match = token.text.match(/<iframe\s+[^>]*src="([^"]+)"[^>]*><\/iframe>/)}
-		{@const iframeSrc = match && match[1]}
-		{#if iframeSrc}
-			<iframe
-				class="w-full my-2"
-				src={iframeSrc}
-				title="Embedded content"
-				frameborder="0"
-				sandbox
-				onload="this.style.height=(this.contentWindow.document.body.scrollHeight+20)+'px';"
-			></iframe>
-		{:else}
-			{token.text}
-		{/if}
+		{token.text}
 	{:else if token.text.includes(`<file type="html"`)}
 		{@const match = token.text.match(/<file type="html" id="([^"]+)"/)}
 		{@const fileId = match && match[1]}
@@ -99,7 +114,7 @@
 				referrerpolicy="strict-origin-when-cross-origin"
 				allowfullscreen
 				width="100%"
-				onload="this.style.height=(this.contentWindow.document.body.scrollHeight+20)+'px';"
+				on:load={resizeIframeToContent}
 			></iframe>
 		{/if}
 	{:else if token.text.includes(`<source_id`)}
