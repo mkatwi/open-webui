@@ -43,6 +43,7 @@ from open_webui.utils.misc import (
 
 from open_webui.utils.auth import get_admin_user, get_verified_user
 from open_webui.utils.access_control import has_access
+from open_webui.utils.permissions import enforce_chat_system_prompt_permission
 
 
 log = logging.getLogger(__name__)
@@ -706,6 +707,8 @@ async def generate_chat_completion(
     metadata = payload.pop("metadata", None)
 
     model_id = form_data.get("model")
+    enforce_chat_system_prompt_permission(request, user, payload.get("messages", []))
+
     model_info = Models.get_model_by_id(model_id)
 
     # Check model info and override the payload

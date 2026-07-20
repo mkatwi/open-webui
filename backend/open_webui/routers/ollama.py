@@ -50,6 +50,7 @@ from open_webui.utils.payload import (
 )
 from open_webui.utils.auth import get_admin_user, get_verified_user
 from open_webui.utils.access_control import has_access
+from open_webui.utils.permissions import enforce_chat_system_prompt_permission
 
 
 from open_webui.config import (
@@ -1289,6 +1290,8 @@ async def generate_chat_completion(
     if "metadata" in payload:
         del payload["metadata"]
 
+    enforce_chat_system_prompt_permission(request, user, payload.get("messages", []))
+
     model_id = payload["model"]
     model_info = Models.get_model_by_id(model_id)
 
@@ -1471,6 +1474,8 @@ async def generate_openai_chat_completion(
     payload = {**completion_form.model_dump(exclude_none=True, exclude=["metadata"])}
     if "metadata" in payload:
         del payload["metadata"]
+
+    enforce_chat_system_prompt_permission(request, user, payload.get("messages", []))
 
     model_id = completion_form.model
     if ":" not in model_id:
