@@ -434,6 +434,11 @@ from open_webui.utils.chat import (
 from open_webui.utils.embeddings import generate_embeddings
 from open_webui.utils.middleware import process_chat_payload, process_chat_response
 from open_webui.utils.access_control import has_access
+from open_webui.utils.permissions import (
+    enforce_chat_feature_permissions,
+    enforce_chat_system_prompt_permission,
+    require_user_permission,
+)
 
 from open_webui.utils.auth import (
     get_license_data,
@@ -1326,6 +1331,19 @@ async def chat_completion(
             request.state.direct = True
             request.state.model = model
 
+        enforce_chat_system_prompt_permission(
+            request, user, form_data.get("messages", [])
+        )
+
+        if form_data.get("tool_servers"):
+            require_user_permission(
+                request, user, "features.direct_tool_servers"
+            )
+
+        form_data["features"] = enforce_chat_feature_permissions(
+            request, user, form_data.get("features", {})
+        )
+
         metadata = {
             "user_id": user.id,
             "chat_id": form_data.pop("chat_id", None),
@@ -1358,6 +1376,8 @@ async def chat_completion(
             request, form_data, user, metadata, model
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         log.debug(f"Error processing chat payload: {e}")
         if metadata.get("chat_id") and metadata.get("message_id"):
