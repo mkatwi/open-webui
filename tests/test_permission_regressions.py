@@ -62,7 +62,9 @@ def load_permissions_module(permission_allowed=False):
         / "utils"
         / "permissions.py"
     )
-    spec = importlib.util.spec_from_file_location("permission_regression_module", module_path)
+    spec = importlib.util.spec_from_file_location(
+        "permission_regression_module", module_path
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
