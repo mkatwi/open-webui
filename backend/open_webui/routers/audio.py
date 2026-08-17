@@ -58,12 +58,30 @@ MAX_FILE_SIZE_MB = 20
 MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024  # Convert MB to bytes
 AZURE_MAX_FILE_SIZE_MB = 200
 AZURE_MAX_FILE_SIZE = AZURE_MAX_FILE_SIZE_MB * 1024 * 1024  # Convert MB to bytes
+DEFAULT_STT_SUPPORTED_CONTENT_TYPES = [
+    "audio/*",
+    "video/webm",
+]
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["AUDIO"])
 
 SPEECH_CACHE_DIR = CACHE_DIR / "audio" / "speech"
 SPEECH_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def normalize_stt_supported_content_types(content_types: list[str] | None) -> list[str]:
+    return [
+        content_type.strip()
+        for content_type in (content_types or [])
+        if content_type and content_type.strip()
+    ]
+
+
+def get_stt_supported_content_types(content_types: list[str] | None) -> list[str]:
+    return normalize_stt_supported_content_types(
+        content_types
+    ) or DEFAULT_STT_SUPPORTED_CONTENT_TYPES
 
 
 ##########################################
@@ -238,7 +256,7 @@ async def update_audio_config(
     request.app.state.config.STT_OPENAI_API_KEY = form_data.stt.OPENAI_API_KEY
     request.app.state.config.STT_ENGINE = form_data.stt.ENGINE
     request.app.state.config.STT_MODEL = form_data.stt.MODEL
-    request.app.state.config.STT_SUPPORTED_CONTENT_TYPES = (
+    request.app.state.config.STT_SUPPORTED_CONTENT_TYPES = normalize_stt_supported_content_types(
         form_data.stt.SUPPORTED_CONTENT_TYPES
     )
 
@@ -919,10 +937,9 @@ def transcription(
 ):
     log.info(f"file.content_type: {file.content_type}")
 
-    supported_content_types = request.app.state.config.STT_SUPPORTED_CONTENT_TYPES or [
-        "audio/*",
-        "video/webm",
-    ]
+    supported_content_types = get_stt_supported_content_types(
+        request.app.state.config.STT_SUPPORTED_CONTENT_TYPES
+    )
 
     if not any(
         fnmatch(file.content_type, content_type)
