@@ -46,3 +46,12 @@ def test_null_group_permissions_do_not_crash_permission_checks():
     access_control = _read("backend/open_webui/utils/access_control.py")
 
     assert "group_permissions = group.permissions or {}" in access_control
+
+
+def test_authoritative_empty_group_lists_are_synced():
+    auths = _read("backend/open_webui/routers/auths.py")
+
+    assert "and ENABLE_LDAP_GROUP_MANAGEMENT\n                    and user_groups" not in auths
+    assert "if ENABLE_LDAP_GROUP_CREATION and user_groups:" in auths
+    assert "Groups.sync_groups_by_group_names(user.id, user_groups)" in auths
+    assert "Groups.sync_groups_by_group_names(user.id, group_names)" in auths
