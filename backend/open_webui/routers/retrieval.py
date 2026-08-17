@@ -79,6 +79,7 @@ from open_webui.utils.misc import (
     calculate_sha256_string,
 )
 from open_webui.utils.auth import get_admin_user, get_verified_user
+from open_webui.utils.permissions import require_permission
 
 from open_webui.config import (
     ENV,
@@ -1860,6 +1861,7 @@ def search_web(request: Request, engine: str, query: str) -> list[SearchResult]:
 async def process_web_search(
     request: Request, form_data: SearchForm, user=Depends(get_verified_user)
 ):
+    require_permission(request, user, "features.web_search")
 
     urls = []
     try:

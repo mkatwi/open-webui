@@ -14,6 +14,7 @@ from open_webui.utils.misc import get_gravatar_url
 from open_webui.utils.pdf_generator import PDFGenerator
 from open_webui.utils.auth import get_admin_user, get_verified_user
 from open_webui.utils.code_interpreter import execute_code_jupyter
+from open_webui.utils.permissions import require_permission
 from open_webui.env import SRC_LOG_LEVELS
 
 
@@ -47,6 +48,8 @@ async def format_code(form_data: CodeForm, user=Depends(get_admin_user)):
 async def execute_code(
     request: Request, form_data: CodeForm, user=Depends(get_verified_user)
 ):
+    require_permission(request, user, "features.code_interpreter")
+
     if request.app.state.config.CODE_EXECUTION_ENGINE == "jupyter":
         output = await execute_code_jupyter(
             request.app.state.config.CODE_EXECUTION_JUPYTER_URL,

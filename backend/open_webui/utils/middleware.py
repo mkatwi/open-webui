@@ -82,6 +82,7 @@ from open_webui.utils.filter import (
     process_filter_functions,
 )
 from open_webui.utils.code_interpreter import execute_code_jupyter
+from open_webui.utils.permissions import require_permission
 
 from open_webui.tasks import create_task
 
@@ -718,6 +719,15 @@ def apply_params_to_form_data(form_data, model):
 
 
 async def process_chat_payload(request, form_data, user, metadata, model):
+    params = form_data.get("params", {})
+    if not isinstance(params, dict):
+        params = {}
+
+    if params.get("system") is not None or any(
+        message.get("role") == "system" for message in form_data["messages"]
+    ):
+        require_permission(request, user, "chat.system_prompt")
+
     form_data = apply_params_to_form_data(form_data, model)
     log.debug(f"form_data: {form_data}")
 
@@ -830,16 +840,19 @@ async def process_chat_payload(request, form_data, user, metadata, model):
             )
 
         if "web_search" in features and features["web_search"]:
+            require_permission(request, user, "features.web_search")
             form_data = await chat_web_search_handler(
                 request, form_data, extra_params, user
             )
 
         if "image_generation" in features and features["image_generation"]:
+            require_permission(request, user, "features.image_generation")
             form_data = await chat_image_generation_handler(
                 request, form_data, extra_params, user
             )
 
         if "code_interpreter" in features and features["code_interpreter"]:
+            require_permission(request, user, "features.code_interpreter")
             form_data["messages"] = add_or_update_user_message(
                 (
                     request.app.state.config.CODE_INTERPRETER_PROMPT_TEMPLATE
@@ -887,6 +900,7 @@ async def process_chat_payload(request, form_data, user, metadata, model):
         )
 
     if tool_servers:
+        require_permission(request, user, "features.direct_tool_servers")
         for tool_server in tool_servers:
             tool_specs = tool_server.pop("specs", [])
 

@@ -96,7 +96,7 @@ def has_permission(
     user_groups = Groups.get_groups_by_member_id(user_id)
 
     for group in user_groups:
-        group_permissions = group.permissions
+        group_permissions = group.permissions or {}
         if get_permission(group_permissions, permission_hierarchy):
             return True
 
@@ -105,6 +105,17 @@ def has_permission(
         default_permissions, DEFAULT_USER_PERMISSIONS
     )
     return get_permission(default_permissions, permission_hierarchy)
+
+
+def user_has_permission(
+    user: UserModel,
+    permission_key: str,
+    default_permissions: Dict[str, Any],
+) -> bool:
+    if user.role == "admin":
+        return True
+
+    return has_permission(user.id, permission_key, default_permissions)
 
 
 def has_access(
