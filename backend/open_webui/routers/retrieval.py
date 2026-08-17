@@ -809,29 +809,44 @@ async def update_rag_config(
         else request.app.state.config.RAG_EXTERNAL_RERANKER_API_KEY
     )
 
-    log.info(
-        f"Updating reranking model: {request.app.state.config.RAG_RERANKING_MODEL} to {form_data.RAG_RERANKING_MODEL}"
-    )
-    try:
-        request.app.state.config.RAG_RERANKING_MODEL = form_data.RAG_RERANKING_MODEL
-
-        try:
-            request.app.state.rf = get_rf(
-                request.app.state.config.RAG_RERANKING_ENGINE,
-                request.app.state.config.RAG_RERANKING_MODEL,
-                request.app.state.config.RAG_EXTERNAL_RERANKER_URL,
-                request.app.state.config.RAG_EXTERNAL_RERANKER_API_KEY,
-                True,
-            )
-        except Exception as e:
-            log.error(f"Error loading reranking model: {e}")
-            request.app.state.config.ENABLE_RAG_HYBRID_SEARCH = False
-    except Exception as e:
-        log.exception(f"Problem updating reranking model: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=ERROR_MESSAGES.DEFAULT(e),
+    reranking_config_updated = any(
+        value is not None
+        for value in (
+            form_data.RAG_RERANKING_ENGINE,
+            form_data.RAG_RERANKING_MODEL,
+            form_data.RAG_EXTERNAL_RERANKER_URL,
+            form_data.RAG_EXTERNAL_RERANKER_API_KEY,
         )
+    )
+
+    if reranking_config_updated:
+        log.info(
+            f"Updating reranking model: {request.app.state.config.RAG_RERANKING_MODEL} to {form_data.RAG_RERANKING_MODEL}"
+        )
+        try:
+            request.app.state.config.RAG_RERANKING_MODEL = (
+                form_data.RAG_RERANKING_MODEL
+                if form_data.RAG_RERANKING_MODEL is not None
+                else request.app.state.config.RAG_RERANKING_MODEL
+            )
+
+            try:
+                request.app.state.rf = get_rf(
+                    request.app.state.config.RAG_RERANKING_ENGINE,
+                    request.app.state.config.RAG_RERANKING_MODEL,
+                    request.app.state.config.RAG_EXTERNAL_RERANKER_URL,
+                    request.app.state.config.RAG_EXTERNAL_RERANKER_API_KEY,
+                    True,
+                )
+            except Exception as e:
+                log.error(f"Error loading reranking model: {e}")
+                request.app.state.config.ENABLE_RAG_HYBRID_SEARCH = False
+        except Exception as e:
+            log.exception(f"Problem updating reranking model: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=ERROR_MESSAGES.DEFAULT(e),
+            )
 
     # Chunking settings
     request.app.state.config.TEXT_SPLITTER = (
