@@ -8,7 +8,11 @@ describe('getSafeIframeSrc', () => {
 
 	it('allows external http and https iframe URLs', () => {
 		expect(
-			getSafeIframeSrc('https://videos.example.net/embed/123?autoplay=0', currentOrigin, webuiBaseUrl)
+			getSafeIframeSrc(
+				'https://videos.example.net/embed/123?autoplay=0',
+				currentOrigin,
+				webuiBaseUrl
+			)
 		).toBe('https://videos.example.net/embed/123?autoplay=0');
 		expect(getSafeIframeSrc('http://legacy.example.net/embed', currentOrigin, webuiBaseUrl)).toBe(
 			'http://legacy.example.net/embed'
@@ -31,7 +35,9 @@ describe('getSafeIframeSrc', () => {
 
 	it('blocks scriptable and local schemes', () => {
 		expect(getSafeIframeSrc('javascript:alert(1)', currentOrigin, webuiBaseUrl)).toBeNull();
-		expect(getSafeIframeSrc('data:text/html,<script>alert(1)</script>', currentOrigin, webuiBaseUrl)).toBeNull();
+		expect(
+			getSafeIframeSrc('data:text/html,<script>alert(1)</script>', currentOrigin, webuiBaseUrl)
+		).toBeNull();
 		expect(getSafeIframeSrc('file:///etc/passwd', currentOrigin, webuiBaseUrl)).toBeNull();
 	});
 });
