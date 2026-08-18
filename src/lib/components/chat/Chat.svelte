@@ -797,7 +797,14 @@
 		}
 
 		if ($page.url.searchParams.get('load-url')) {
-			await uploadWeb($page.url.searchParams.get('load-url'));
+			const url = $page.url.searchParams.get('load-url');
+			const confirmed = window.confirm(
+				`${$i18n.t('Load this URL into the chat?')}\n\n${url ?? ''}`
+			);
+
+			if (confirmed) {
+				await uploadWeb(url);
+			}
 		}
 
 		if ($page.url.searchParams.get('web-search') === 'true') {

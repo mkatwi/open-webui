@@ -215,9 +215,11 @@ async def update_user_settings_by_session_user(
     request: Request, form_data: UserSettings, user=Depends(get_verified_user)
 ):
     updated_user_settings = form_data.model_dump()
+    ui_settings = updated_user_settings.get("ui") or {}
+
     if (
         user.role != "admin"
-        and "toolServers" in updated_user_settings.get("ui").keys()
+        and "toolServers" in ui_settings.keys()
         and not has_permission(
             user.id,
             "features.direct_tool_servers",
@@ -225,7 +227,19 @@ async def update_user_settings_by_session_user(
         )
     ):
         # If the user is not an admin and does not have permission to use tool servers, remove the key
-        updated_user_settings["ui"].pop("toolServers", None)
+        ui_settings.pop("toolServers", None)
+        updated_user_settings["ui"] = ui_settings
+
+    if (
+        user.role != "admin"
+        and "system" in updated_user_settings
+        and not has_permission(
+            user.id,
+            "chat.system_prompt",
+            request.app.state.config.USER_PERMISSIONS,
+        )
+    ):
+        updated_user_settings.pop("system", None)
 
     user = Users.update_user_settings_by_id(user.id, updated_user_settings)
     if user:

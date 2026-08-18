@@ -415,9 +415,8 @@ async def ldap_auth(request: Request, response: Response, form_data: LdapForm):
                 if (
                     user.role != "admin"
                     and ENABLE_LDAP_GROUP_MANAGEMENT
-                    and user_groups
                 ):
-                    if ENABLE_LDAP_GROUP_CREATION:
+                    if ENABLE_LDAP_GROUP_CREATION and user_groups:
                         Groups.create_groups_by_group_names(user.id, user_groups)
 
                     try:
@@ -479,8 +478,7 @@ async def signin(request: Request, response: Response, form_data: SigninForm):
             ).split(",")
             group_names = [name.strip() for name in group_names if name.strip()]
 
-            if group_names:
-                Groups.sync_groups_by_group_names(user.id, group_names)
+            Groups.sync_groups_by_group_names(user.id, group_names)
 
     elif WEBUI_AUTH == False:
         admin_email = "admin@localhost"
