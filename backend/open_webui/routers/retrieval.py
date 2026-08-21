@@ -79,6 +79,7 @@ from open_webui.utils.misc import (
     calculate_sha256_string,
 )
 from open_webui.utils.auth import get_admin_user, get_verified_user
+from open_webui.utils.config_helpers import preserve_existing_if_none
 
 from open_webui.config import (
     ENV,
@@ -809,11 +810,16 @@ async def update_rag_config(
         else request.app.state.config.RAG_EXTERNAL_RERANKER_API_KEY
     )
 
+    reranking_model = preserve_existing_if_none(
+        form_data.RAG_RERANKING_MODEL,
+        request.app.state.config.RAG_RERANKING_MODEL,
+    )
+
     log.info(
-        f"Updating reranking model: {request.app.state.config.RAG_RERANKING_MODEL} to {form_data.RAG_RERANKING_MODEL}"
+        f"Updating reranking model: {request.app.state.config.RAG_RERANKING_MODEL} to {reranking_model}"
     )
     try:
-        request.app.state.config.RAG_RERANKING_MODEL = form_data.RAG_RERANKING_MODEL
+        request.app.state.config.RAG_RERANKING_MODEL = reranking_model
 
         try:
             request.app.state.rf = get_rf(
@@ -851,13 +857,23 @@ async def update_rag_config(
     )
 
     # File upload settings
-    request.app.state.config.FILE_MAX_SIZE = form_data.FILE_MAX_SIZE
-    request.app.state.config.FILE_MAX_COUNT = form_data.FILE_MAX_COUNT
+    request.app.state.config.FILE_MAX_SIZE = preserve_existing_if_none(
+        form_data.FILE_MAX_SIZE, request.app.state.config.FILE_MAX_SIZE
+    )
+    request.app.state.config.FILE_MAX_COUNT = preserve_existing_if_none(
+        form_data.FILE_MAX_COUNT, request.app.state.config.FILE_MAX_COUNT
+    )
     request.app.state.config.FILE_IMAGE_COMPRESSION_WIDTH = (
-        form_data.FILE_IMAGE_COMPRESSION_WIDTH
+        preserve_existing_if_none(
+            form_data.FILE_IMAGE_COMPRESSION_WIDTH,
+            request.app.state.config.FILE_IMAGE_COMPRESSION_WIDTH,
+        )
     )
     request.app.state.config.FILE_IMAGE_COMPRESSION_HEIGHT = (
-        form_data.FILE_IMAGE_COMPRESSION_HEIGHT
+        preserve_existing_if_none(
+            form_data.FILE_IMAGE_COMPRESSION_HEIGHT,
+            request.app.state.config.FILE_IMAGE_COMPRESSION_HEIGHT,
+        )
     )
     request.app.state.config.ALLOWED_FILE_EXTENSIONS = (
         form_data.ALLOWED_FILE_EXTENSIONS

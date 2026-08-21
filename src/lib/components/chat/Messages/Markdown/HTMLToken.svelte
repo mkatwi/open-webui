@@ -5,6 +5,7 @@
 	import { WEBUI_BASE_URL } from '$lib/constants';
 	import Source from './Source.svelte';
 	import { settings } from '$lib/stores';
+	import { getSafeIframeSrc } from '$lib/utils/iframe';
 
 	export let id: string;
 	export let token: Token;
@@ -71,7 +72,7 @@
 		{/if}
 	{:else if token.text && token.text.includes('<iframe')}
 		{@const match = token.text.match(/<iframe\s+[^>]*src="([^"]+)"[^>]*><\/iframe>/)}
-		{@const iframeSrc = match && match[1]}
+		{@const iframeSrc = getSafeIframeSrc(match && match[1])}
 		{#if iframeSrc}
 			<iframe
 				class="w-full my-2"
@@ -79,6 +80,7 @@
 				title="Embedded content"
 				frameborder="0"
 				sandbox
+				referrerpolicy="strict-origin-when-cross-origin"
 				onload="this.style.height=(this.contentWindow.document.body.scrollHeight+20)+'px';"
 			></iframe>
 		{:else}
