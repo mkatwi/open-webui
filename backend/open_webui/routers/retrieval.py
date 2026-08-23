@@ -79,6 +79,7 @@ from open_webui.utils.misc import (
     calculate_sha256_string,
 )
 from open_webui.utils.auth import get_admin_user, get_verified_user
+from open_webui.utils.file_access import user_can_access_file
 
 from open_webui.config import (
     ENV,
@@ -1269,15 +1270,27 @@ class ProcessFileForm(BaseModel):
     collection_name: Optional[str] = None
 
 
+def _get_file_for_processing(file_id: str, access_type: str, user) -> FileModel:
+    file = Files.get_file_by_id(file_id)
+
+    if not user_can_access_file(file, user, access_type):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ERROR_MESSAGES.NOT_FOUND,
+        )
+
+    return file
+
+
 @router.post("/process/file")
 def process_file(
     request: Request,
     form_data: ProcessFileForm,
     user=Depends(get_verified_user),
 ):
-    try:
-        file = Files.get_file_by_id(form_data.file_id)
+    file = _get_file_for_processing(form_data.file_id, "write", user)
 
+    try:
         collection_name = form_data.collection_name
 
         if collection_name is None:
@@ -1298,7 +1311,7 @@ def process_file(
                 Document(
                     page_content=form_data.content.replace("<br/>", "\n"),
                     metadata={
-                        **file.meta,
+                        **(file.meta or {}),
                         "name": file.filename,
                         "created_by": file.user_id,
                         "file_id": file.id,
@@ -1327,9 +1340,9 @@ def process_file(
             else:
                 docs = [
                     Document(
-                        page_content=file.data.get("content", ""),
+                        page_content=(file.data or {}).get("content", ""),
                         metadata={
-                            **file.meta,
+                            **(file.meta or {}),
                             "name": file.filename,
                             "created_by": file.user_id,
                             "file_id": file.id,
@@ -1338,7 +1351,7 @@ def process_file(
                     )
                 ]
 
-            text_content = file.data.get("content", "")
+            text_content = (file.data or {}).get("content", "")
         else:
             # Process the file and save the content
             # Usage: /files/
@@ -1374,7 +1387,7 @@ def process_file(
                     MISTRAL_OCR_API_KEY=request.app.state.config.MISTRAL_OCR_API_KEY,
                 )
                 docs = loader.load(
-                    file.filename, file.meta.get("content_type"), file_path
+                    file.filename, (file.meta or {}).get("content_type"), file_path
                 )
 
                 docs = [
@@ -1393,9 +1406,9 @@ def process_file(
             else:
                 docs = [
                     Document(
-                        page_content=file.data.get("content", ""),
+                        page_content=(file.data or {}).get("content", ""),
                         metadata={
-                            **file.meta,
+                            **(file.meta or {}),
                             "name": file.filename,
                             "created_by": file.user_id,
                             "file_id": file.id,
@@ -2171,13 +2184,14 @@ def process_files_batch(
     all_docs: List[Document] = []
     for file in form_data.files:
         try:
-            text_content = file.data.get("content", "")
+            file = _get_file_for_processing(file.id, "write", user)
+            text_content = (file.data or {}).get("content", "")
 
             docs: List[Document] = [
                 Document(
                     page_content=text_content.replace("<br/>", "\n"),
                     metadata={
-                        **file.meta,
+                        **(file.meta or {}),
                         "name": file.filename,
                         "created_by": file.user_id,
                         "file_id": file.id,
