@@ -35,7 +35,9 @@ from langchain_core.utils.function_calling import (
 
 from open_webui.models.tools import Tools
 from open_webui.models.users import UserModel
+from open_webui.utils.access_control import has_access
 from open_webui.utils.plugin import load_tool_module_by_id
+from open_webui.utils.tool_access import can_use_tool
 from open_webui.env import (
     SRC_LOG_LEVELS,
     AIOHTTP_CLIENT_TIMEOUT_TOOL_SERVER_DATA,
@@ -76,10 +78,23 @@ def get_tools(
         tool = Tools.get_tool_by_id(tool_id)
         if tool is None:
             if tool_id.startswith("server:"):
-                server_idx = int(tool_id.split(":")[1])
-                tool_server_connection = (
-                    request.app.state.config.TOOL_SERVER_CONNECTIONS[server_idx]
-                )
+                try:
+                    server_idx = int(tool_id.split(":")[1])
+                    tool_server_connection = (
+                        request.app.state.config.TOOL_SERVER_CONNECTIONS[server_idx]
+                    )
+                except (IndexError, TypeError, ValueError):
+                    continue
+
+                if not can_use_tool(
+                    user.id,
+                    user.role,
+                    None,
+                    tool_server_connection.get("config", {}).get("access_control", None),
+                    has_access,
+                ):
+                    continue
+
                 tool_server_data = None
                 for server in request.app.state.TOOL_SERVERS:
                     if server["idx"] == server_idx:
@@ -140,6 +155,11 @@ def get_tools(
             else:
                 continue
         else:
+            if not can_use_tool(
+                user.id, user.role, tool.user_id, tool.access_control, has_access
+            ):
+                continue
+
             module = request.app.state.TOOLS.get(tool_id, None)
             if module is None:
                 module, _ = load_tool_module_by_id(tool_id)
