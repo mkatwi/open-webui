@@ -22,6 +22,7 @@ from open_webui.env import (
     WEBSOCKET_SENTINEL_HOSTS,
 )
 from open_webui.utils.auth import decode_token
+from open_webui.socket.sessions import get_user_ids_from_session_ids
 from open_webui.socket.utils import RedisDict, RedisLock
 
 from open_webui.env import (
@@ -174,13 +175,7 @@ def get_user_ids_from_room(room):
         namespace="/",
         room=room,
     )
-
-    active_user_ids = list(
-        set(
-            [SESSION_POOL.get(session_id[0])["id"] for session_id in active_session_ids]
-        )
-    )
-    return active_user_ids
+    return get_user_ids_from_session_ids(active_session_ids, SESSION_POOL)
 
 
 def get_active_status_by_user_id(user_id):
