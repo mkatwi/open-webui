@@ -82,6 +82,7 @@ from open_webui.utils.filter import (
     process_filter_functions,
 )
 from open_webui.utils.code_interpreter import execute_code_jupyter
+from open_webui.utils.file_limits import file_count_exceeds_limit
 
 from open_webui.tasks import create_task
 
@@ -720,6 +721,17 @@ def apply_params_to_form_data(form_data, model):
 async def process_chat_payload(request, form_data, user, metadata, model):
     form_data = apply_params_to_form_data(form_data, model)
     log.debug(f"form_data: {form_data}")
+
+    if file_count_exceeds_limit(
+        metadata.get("files"), request.app.state.config.FILE_MAX_COUNT
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "You can only chat with a maximum of "
+                f"{request.app.state.config.FILE_MAX_COUNT} file(s) at a time."
+            ),
+        )
 
     event_emitter = get_event_emitter(metadata)
     event_call = get_event_call(metadata)
