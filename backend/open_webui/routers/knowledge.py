@@ -22,6 +22,11 @@ from open_webui.storage.provider import Storage
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.utils.auth import get_verified_user
 from open_webui.utils.access_control import has_access, has_permission
+from open_webui.utils.knowledge_files import (
+    file_id_in_knowledge,
+    get_knowledge_file_ids,
+    user_owns_file_or_is_admin,
+)
 
 
 from open_webui.env import SRC_LOG_LEVELS
@@ -361,6 +366,11 @@ def add_file_to_knowledge_by_id(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=ERROR_MESSAGES.NOT_FOUND,
         )
+    if not user_owns_file_or_is_admin(user, file):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+        )
     if not file.data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -440,6 +450,11 @@ def update_file_from_knowledge_by_id(
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
 
+    if not file_id_in_knowledge(knowledge, form_data.file_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.DEFAULT("file_id"),
+        )
     file = Files.get_file_by_id(form_data.file_id)
     if not file:
         raise HTTPException(
@@ -510,6 +525,11 @@ def remove_file_from_knowledge_by_id(
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
 
+    if not file_id_in_knowledge(knowledge, form_data.file_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.DEFAULT("file_id"),
+        )
     file = Files.get_file_by_id(form_data.file_id)
     if not file:
         raise HTTPException(
@@ -527,22 +547,9 @@ def remove_file_from_knowledge_by_id(
         log.debug(e)
         pass
 
-    try:
-        # Remove the file's collection from vector database
-        file_collection = f"file-{form_data.file_id}"
-        if VECTOR_DB_CLIENT.has_collection(collection_name=file_collection):
-            VECTOR_DB_CLIENT.delete_collection(collection_name=file_collection)
-    except Exception as e:
-        log.debug("This was most likely caused by bypassing embedding processing")
-        log.debug(e)
-        pass
-
-    # Delete file from database
-    Files.delete_file_by_id(form_data.file_id)
-
     if knowledge:
         data = knowledge.data or {}
-        file_ids = data.get("file_ids", [])
+        file_ids = get_knowledge_file_ids(knowledge)
 
         if form_data.file_id in file_ids:
             file_ids.remove(form_data.file_id)
@@ -713,6 +720,11 @@ def add_files_to_knowledge_batch(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"File {form.file_id} not found",
+            )
+        if not user_owns_file_or_is_admin(user, file):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
             )
         files.append(file)
 

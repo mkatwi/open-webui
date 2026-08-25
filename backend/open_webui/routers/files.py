@@ -36,6 +36,7 @@ from open_webui.routers.retrieval import ProcessFileForm, process_file
 from open_webui.routers.audio import transcribe
 from open_webui.storage.provider import Storage
 from open_webui.utils.auth import get_admin_user, get_verified_user
+from open_webui.utils.file_limits import file_size_exceeds_limit, get_upload_file_size
 from pydantic import BaseModel
 
 log = logging.getLogger(__name__)
@@ -106,6 +107,15 @@ def upload_file(
     try:
         unsanitized_filename = file.filename
         filename = os.path.basename(unsanitized_filename)
+
+        if not internal:
+            max_file_size = request.app.state.config.FILE_MAX_SIZE
+            file_size = get_upload_file_size(file)
+            if file_size_exceeds_limit(file_size, max_file_size):
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail=ERROR_MESSAGES.FILE_TOO_LARGE(f"{max_file_size} MB"),
+                )
 
         file_extension = os.path.splitext(filename)[1]
         # Remove the leading dot from the file extension
@@ -204,6 +214,8 @@ def upload_file(
                 detail=ERROR_MESSAGES.DEFAULT("Error uploading file"),
             )
 
+    except HTTPException:
+        raise
     except Exception as e:
         log.exception(e)
         raise HTTPException(
